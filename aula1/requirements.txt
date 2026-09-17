@@ -1,0 +1,6 @@
+# crie um arquivo  requirements.txt  dentro de aula1/  e cole:
+openai-agents>=0.22.0,<0.23.0    # o SDK de agentes
+python-dotenv>=1.0.1             # lê o arquivo .env
+pydantic>=2.7                    # modelos de saída (seção 4)
+requests>=2.31                   # chamadas HTTP das ferramentas (seção 2 em diante)
+fastapi[standard]
