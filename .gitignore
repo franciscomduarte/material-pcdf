@@ -1,0 +1,36 @@
+# Ambientes virtuais Python
+.venv/
+venv/
+env/
+ENV/
+
+# Variáveis de ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# Cache e bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Bancos de dados locais (SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Distribuição / empacotamento
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Ambientes de IDE
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
