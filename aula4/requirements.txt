@@ -1,0 +1,6 @@
+openai-agents        # SDK de agentes (Agent + Runner)
+openai               # cliente base (SDK e Ollama)
+python-dotenv        # ler o arquivo .env
+paho-mqtt            # Aula 4 — cliente MQTT
+amqtt                # Aula 4 — broker MQTT local opcional
+mcp                  # Aula 5 — servidor/cliente MCP (FastMCP)
