@@ -22,7 +22,8 @@ atividades) acompanha os slides.
 ## Setup — Blocos 1 a 4 (só bancos)
 
 ```bash
-cd aula5
+git clone https://github.com/franciscomduarte/material-pcdf.git
+cd material-pcdf/aula5
 python -m venv .venv
 # Windows:
 .venv\Scripts\activate
