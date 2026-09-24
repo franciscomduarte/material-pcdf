@@ -1,0 +1,16 @@
+id,data,regiao,tipo_evento,nome,publico_estimado
+1,2026-08-15,Região Alfa,FEIRA,Feira de artesanato da Praça Alfa,800
+2,2026-08-31,Região Bravo,JOGO,Clássico no Estádio Bravo,42000
+3,2026-09-01,Região Foxtrot,FEIRA,Abertura da Feira Agropecuária,15000
+4,2026-09-02,Região Bravo,FESTA,Festa de rua do bairro Bravo Norte,6000
+5,2026-09-05,Região Charlie,CORRIDA,Corrida de rua 10 km,2500
+6,2026-09-06,Região Kilo,SHOW,Festival de Música Kilo,30000
+7,2026-09-08,Região Foxtrot,JOGO,Jogo no Estádio Foxtrot,18000
+8,2026-09-09,Região Bravo,REUNIAO,Reunião comunitária sobre segurança,120
+9,2026-09-12,Região Kilo,JOGO,Rodada no Ginásio Kilo,9000
+10,2026-09-13,Bravo,SHOW,Show de rock na Arena Bravo,18000
+11,2026-09-17,Região Bravo,MANIFESTACAO,Manifestação na Praça Central,3000
+12,2026-09-20,Região Golf,RELIGIOSO,Missa campal no Parque Golf,1500
+13,2026-09-26,Região Bravo,JOGO,Decisão do campeonato no Estádio Bravo,45000
+14,2026-09-27,  região kilo ,SHOW,Show de encerramento do Festival Kilo,
+15,2026-10-03,Região Foxtrot,FEIRA,Feira do Produtor,8000

@@ -1,36 +1,49 @@
-# Ambientes virtuais Python
+# Ambiente virtual
 .venv/
 venv/
 env/
-ENV/
 
-# Variáveis de ambiente / segredos
+# Segredos / configuração local (o .env.example é o modelo e vai no commit)
 .env
 .env.*
 !.env.example
 
-# Cache e bytecode Python
+# Cache e artefatos de execução do Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Bancos de dados locais (SQLite)
+# Arquivos gerados ao rodar os exemplos (ex.: exemplos/10_seguranca/auditoria.log)
+*.log
 *.db
 *.sqlite
 *.sqlite3
 
-# Distribuição / empacotamento
-build/
-dist/
-*.egg-info/
+# Docker — overrides locais de cada máquina
+docker-compose.override.yml
+compose.override.yml
 
-# Logs
-*.log
+# Claude Code — estado local
+.claude/settings.local.json
+.claude/*.lock
 
-# Ambientes de IDE
+# IDEs / editores
 .vscode/
 .idea/
 
 # Sistema operacional
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Log gerado pelo Exemplo 03/04 (SQL executado)
+sql_executado.log
+
+# Material do professor e desafios: fora do repositório dos alunos
+aula5/aula-05.md
+aula5/exemplos/09_agente_complexo/desafio_extra_limite_capacidade.py
+aula5/desafio_final/

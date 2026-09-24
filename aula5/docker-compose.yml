@@ -1,0 +1,146 @@
+services:
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cisp-mssql
+    restart: unless-stopped
+    environment:
+      TZ: America/Sao_Paulo
+      ACCEPT_EULA: Y
+      SA_PASSWORD: YourStrong@Password123
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Password123' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cisp-net
+
+  postgres:
+    image: postgres:18-trixie
+    container_name: cisp-postgres
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Postgres@12345
+      POSTGRES_DB: cisp_ocorrencias
+      TZ: America/Sao_Paulo
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./banco-postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cisp_ocorrencias"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - cisp-net
+
+  # ---------------------------------------------------------------------
+  # A partir daqui: MCP Servers + Agente, sob o profile "full". Ficam FORA
+  # do `docker compose up` padrão até o Bloco 5 da aula, quando o agente
+  # passa a rodar dentro do Docker e falar com os MCP Servers por rede
+  # (Streamable HTTP) em vez de stdio local.
+  #
+  #   docker compose up -d postgres mssql        -> Blocos 1-4 (só bancos)
+  #   docker compose --profile full up -d --build -> Bloco 5 (tudo)
+  # ---------------------------------------------------------------------
+
+  mcp-ocorrencias:
+    build: ./mcp-ocorrencias
+    container_name: cisp-mcp-ocorrencias
+    restart: unless-stopped
+    profiles: ["full"]
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: postgres
+      PG_PASSWORD: Postgres@12345
+      PG_DATABASE: cisp_ocorrencias
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cisp-net
+
+  mcp-operacoes:
+    build: ./mcp-operacoes
+    container_name: cisp-mcp-operacoes
+    restart: unless-stopped
+    profiles: ["full"]
+    environment:
+      MSSQL_HOST: mssql
+      MSSQL_PORT: 1433
+      MSSQL_USER: sa
+      MSSQL_PASSWORD: YourStrong@Password123
+      MSSQL_DATABASE: cisp_operacoes
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      mssql:
+        condition: service_healthy
+    networks:
+      - cisp-net
+
+  mcp-servicos:
+    build: ./mcp-servicos
+    container_name: cisp-mcp-servicos
+    restart: unless-stopped
+    profiles: ["full"]
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8003
+    ports:
+      - "8003:8003"
+    networks:
+      - cisp-net
+
+  agente:
+    build: ./agente
+    container_name: cisp-agente
+    restart: "no"
+    profiles: ["full"]
+    environment:
+      PROVEDOR: ${PROVEDOR:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      OPENAI_DEFAULT_MODEL: ${OPENAI_DEFAULT_MODEL:-gpt-4o-mini}
+      MCP_OCORRENCIAS_URL: http://mcp-ocorrencias:8001/mcp
+      MCP_OPERACOES_URL: http://mcp-operacoes:8002/mcp
+      MCP_SERVICOS_URL: http://mcp-servicos:8003/mcp
+    depends_on:
+      - mcp-ocorrencias
+      - mcp-operacoes
+      - mcp-servicos
+    networks:
+      - cisp-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
+
+networks:
+  cisp-net:
+    driver: bridge
+
+volumes:
+  mssql-data:
+  postgres-data:

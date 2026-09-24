@@ -1,0 +1,6 @@
+# Dependências de todos os exemplos da Aula 5 (instale com: pip install -r requirements.txt)
+mcp>=2.0
+openai-agents>=0.22.0,<0.23.0
+psycopg2-binary>=2.9
+pymssql>=2.3
+python-dotenv>=1.0

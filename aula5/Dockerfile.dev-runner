@@ -1,0 +1,6 @@
+# Imagem auxiliar SÓ para validação/desenvolvimento nesta máquina (bug de
+# proxy de porta do Docker Desktop para Windows -- ver TROUBLESHOOTING no
+# README). NÃO faz parte do material entregue aos alunos.
+FROM python:3.12-slim
+RUN pip install --no-cache-dir mcp "openai-agents>=0.22.0,<0.23.0" python-dotenv psycopg2-binary "psycopg[binary]" pymssql openai
+WORKDIR /app
