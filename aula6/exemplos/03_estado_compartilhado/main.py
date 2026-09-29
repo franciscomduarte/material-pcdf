@@ -1,4 +1,20 @@
+
 """
+
+SEM ESTADO: cada etapa repassa argumentos para a próxima
+
+  receber ─(a)→ classificar ─(a,b)→ analisar ─(a,b,c)→ responder
+  Inserir uma etapa no meio obriga a mudar a assinatura de todas as seguintes.
+
+COM ESTADO: uma ficha única, que todas leem e escrevem
+
+  ┌───────────────────────── ESTADO ─────────────────────────┐
+  │ solicitacao │ categoria │ resultado │ resposta            │
+  └──────▲──────────────▲────────────▲───────────▲───────────┘
+         │              │            │           │
+      receber ──▶ classificar ──▶ analisar ──▶ responder
+
+
 Exemplo 03 -- ESTADO COMPARTILHADO.
 
 No exemplo 01, 'categoria' era uma variável solta que ninguém usava. No 02,
