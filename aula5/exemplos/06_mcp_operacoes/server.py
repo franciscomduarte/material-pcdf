@@ -18,11 +18,25 @@ from database import query
 mcp = MCPServer("operacoes-mcp")
 
 
-@mcp.tool()
-def consultar_unidades() -> list[dict]:
-    """Lista as unidades operacionais (delegacias, batalhões, bases) da CISP."""
-    return query("SELECT codigo, nome, regiao, tipo FROM unidades ORDER BY nome;")
 
+#@mcp.tool()
+#def consultar_unidades() -> list[dict]:
+#    """Lista as unidades operacionais (delegacias, batalhões, bases) da CISP."""
+#    return query("SELECT codigo, nome, regiao, tipo FROM unidades ORDER BY nome;")
+
+
+@mcp.tool()
+def consultar_unidades(regiao: str | None = None) -> list[dict]:
+    """Lista as unidades operacionais (delegacias, batalhões, bases) da CISP.
+
+    Args:
+        regiao: filtra por nome da região (ex.: 'Bravo'). Opcional -- sem
+            filtro, retorna todas as unidades.
+    """
+    if regiao:
+        sql = "SELECT codigo, nome, regiao, tipo FROM unidades WHERE regiao LIKE %s ORDER BY nome;"
+        return query(sql, (f"%{regiao}%",))
+    return query("SELECT codigo, nome, regiao, tipo FROM unidades ORDER BY nome;")
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

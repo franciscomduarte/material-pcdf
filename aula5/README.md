@@ -99,6 +99,41 @@ Para voltar ao estado "só bancos" entre uma aula e outra:
 docker compose --profile full stop mcp-ocorrencias mcp-operacoes mcp-servicos
 ```
 
+## Extra — exemplos via HTTP (14 a 17)
+
+Os exemplos 14 a 17 usam **Streamable HTTP** em vez de stdio: o MCP Server é um
+serviço que fica de pé sozinho e o cliente chega nele por **URL**, então os dois
+podem estar em máquinas diferentes. Não precisam de Docker nem de banco (só do
+`pip install -r requirements.txt` e, nos agentes, da chave no `.env`).
+
+| Exemplo | O que mostra | Como rodar |
+|---|---|---|
+| `14_mcp_http_basico` | Server HTTP, cliente Python e a conversa JSON-RPC "crua" | `python server.py` em um terminal; `python cliente.py` e `python requisicao_bruta.py` em outro |
+| `15_agente_mcp_http` | Agente que só conhece a URL do server | server do 14 no ar; `python agente.py` |
+| `16_mcp_http_autenticado` | Server protegido por token Bearer (401 sem token) | `MCP_TOKEN=segredo python server.py`; mesmo `MCP_TOKEN` no `python cliente.py` |
+| `17_mcp_http_distribuido` | Agente com 2 servers remotos que segue funcionando se um cair | servers do 14 e do 16 no ar; `MCP_TOKEN=segredo python agente.py` |
+
+No PowerShell, defina variáveis assim: `$env:MCP_TOKEN = "segredo"; python server.py`.
+
+**Rodando em máquinas diferentes.** Por padrão o server escuta só em
+`127.0.0.1` (a própria máquina). Para aceitar outras máquinas, suba-o com
+`MCP_HOST=0.0.0.0` e, no cliente, aponte a URL para o IP dele:
+
+```bash
+# máquina A (server)
+MCP_HOST=0.0.0.0 python server.py
+# máquina B (cliente ou agente)
+MCP_URL=http://IP_DA_MAQUINA_A:8000/mcp python agente.py
+```
+
+O firewall da máquina A precisa liberar a porta (8000, ou 8010 no exemplo 16). Como
+a turma é remota e não compartilha rede, uma alternativa é publicar a porta com um
+túnel (por exemplo `cloudflared tunnel --url http://localhost:8000`) e usar a URL
+`https://...` gerada como `MCP_URL`. **Mesmo com túnel, suba o server com
+`MCP_HOST=0.0.0.0`**: com `127.0.0.1` o SDK rejeita, com `421 Invalid Host header`, qualquer
+requisição cujo `Host` não seja o da própria máquina. **Nunca exponha o exemplo 14 (sem
+autenticação) na internet com dados reais**: para isso existe o 16.
+
 ## Estrutura
 
 ```
@@ -107,7 +142,7 @@ aula5/
 ├── dados/                   # referência canônica + geradores de massa
 ├── banco-postgres/init.sql  # schema OCORRÊNCIAS
 ├── banco-sqlserver/init.sql # schema OPERAÇÕES
-├── exemplos/                # 01..11, cada um = 1 passo da aula
+├── exemplos/                # 01..11, cada um = 1 passo da aula; 14..17 = MCP via HTTP
 ├── mcp-ocorrencias/         # MCP Server 1 (Postgres)
 ├── mcp-operacoes/           # MCP Server 2 (SQL Server)
 ├── mcp-servicos/            # MCP Server 3 (sem banco)

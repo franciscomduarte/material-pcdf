@@ -64,8 +64,7 @@ async def main():
         )
 
         pergunta = (
-            "Quais são as 3 regiões com mais ocorrências? Para cada uma, "
-            "diga quais unidades operacionais atendem essa região."
+            "Qual é as 3 regiões com maior número de ocorrências? Diga também quais unidades operacionais atendem essa região."
         )
         resultado = await Runner.run(agente, pergunta)
 

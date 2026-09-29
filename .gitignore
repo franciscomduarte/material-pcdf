@@ -47,3 +47,7 @@ sql_executado.log
 aula5/aula-05.md
 aula5/exemplos/09_agente_complexo/desafio_extra_limite_capacidade.py
 aula5/desafio_final/
+
+# Aula 6: roteiro do professor e solução do desafio (enunciado, esqueleto e testes vão para os alunos)
+aula6/PROFESSOR.md
+aula6/desafio/solucao/

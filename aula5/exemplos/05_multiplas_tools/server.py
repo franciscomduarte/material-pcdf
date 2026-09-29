@@ -40,6 +40,7 @@ def consultar_ocorrencias(
     regiao: str | None = None,
     periodo_dias: int = 30,
     tipo: str | None = None,
+    gravidade: str | None = None,
 ) -> list[dict]:
     """Consulta ocorrências recentes, com filtros opcionais.
 
@@ -48,6 +49,7 @@ def consultar_ocorrencias(
         periodo_dias: quantos dias para trás considerar (padrão 30).
         tipo: código do tipo de ocorrência. Use listar_tipos_ocorrencia
             para descobrir os códigos válidos. Opcional.
+        gravidade: BAIXA, MEDIA, ALTA ou CRITICA. Opcional.
     """
     condicoes = ["o.data_hora >= NOW() - (%s || ' days')::interval"]
     params: list = [periodo_dias]
@@ -57,6 +59,9 @@ def consultar_ocorrencias(
     if tipo:
         condicoes.append("t.codigo = %s")
         params.append(tipo.upper())
+    if gravidade:
+        condicoes.append("o.gravidade = %s")
+        params.append(gravidade.upper())
 
     sql = f"""
         SELECT o.id, o.data_hora::text AS data_hora, t.codigo AS tipo,

@@ -51,7 +51,7 @@ async def main():
             mcp_servers=[mcp_ocorrencias],
         )
 
-        pergunta = "Quais ocorrências de ROUBO aconteceram na Região Bravo nos últimos 15 dias?"
+        pergunta = "Quais ocorrências de Roubo de Veículo aconteceram na Região Kilo nos últimos 7 dias?"
         LOG_SQL.unlink(missing_ok=True)  # começa o log desta execução do zero
         resultado = await Runner.run(agente, pergunta)
 

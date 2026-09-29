@@ -1,0 +1,9 @@
+# Dependências dos exemplos da Aula 6 (instale com: pip install -r requirements.txt)
+# Versões testadas: langgraph 1.2.12 / openai 3.19 / anthropic 1.8 / Python 3.10
+# Os exemplos 01-03 não usam nenhuma dependência (Python puro).
+# Os exemplos 04-10 rodam com PROVEDOR=mock usando apenas langgraph e python-dotenv -- sem API Key.
+langgraph>=1.2,<2.0
+python-dotenv>=1.0
+# Provedores reais (import tardio: só são exigidos se você escolher esse provedor)
+openai>=2.0        # PROVEDOR=openai ou ollama (Ollama usa a API compatível com OpenAI)
+anthropic>=1.8,<2.0  # PROVEDOR=claude (opcional)

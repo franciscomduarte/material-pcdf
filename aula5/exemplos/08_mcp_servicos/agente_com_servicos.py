@@ -77,7 +77,7 @@ async def main():
         pergunta = (
             "Qual a unidade mais próxima da ocorrência de ROUBO mais recente "
             "registrada na Região Bravo? Diga também quantas viaturas "
-            "disponíveis essa unidade tem agora."
+            "disponíveis essa unidade tem agora. Mostre a classificação de indice operacional."
         )
         resultado = await Runner.run(agente, pergunta, max_turns=15)
         print(resultado.final_output)
