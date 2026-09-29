@@ -7,3 +7,7 @@ python-dotenv>=1.0
 # Provedores reais (import tardio: só são exigidos se você escolher esse provedor)
 openai>=2.0        # PROVEDOR=openai ou ollama (Ollama usa a API compatível com OpenAI)
 anthropic>=1.8,<2.0  # PROVEDOR=claude (opcional)
+# LangSmith (Bloco 6, extra opcional): já vem como dependência do langgraph, listado
+# aqui só porque passamos a usá-lo diretamente (LANGSMITH_TRACING=true). Sem API Key
+# configurada, tracing fica desligado e nada muda no comportamento dos exemplos.
+langsmith>=0.14,<1.0
