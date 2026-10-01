@@ -91,7 +91,16 @@ Os exemplos 01–03 são Python puro (não precisam nem do LangGraph).
         ↓
 10_agente_completo      Tudo junto: o agente como grafo de execução
         ↓
-desafio                 Você implementa: análise de solicitação de atendimento
+11_grafo_real           Próximo do real: função, LLM, MCP, API e tool como nós (DAG + ciclo)
+        ↓
+desafio                 Você implementa: análise de solicitação (Parte A: decisão e ciclo; Parte B: nós MCP, API e tool)
+desafio2                Você implementa: despacho de viatura (LLM + MCP + API + ciclo)
+        ↓
+desafio3                Você implementa: decisões tipadas com o JEV (LLM escreve, JEV decide; 5 caminhos)
+        ↓
+exercicio_guiado        Passo a passo: do grafo ao Mermaid e do Mermaid a um MCP Server
+        ↓
+demo_cofre              Demonstração em 5 pontos (estado, decisão, ciclo e parada), para fazer junto com a turma
 ```
 
 Estrutura de diretórios:
@@ -103,8 +112,12 @@ aula6/
 ├── provedor.py          # escolhe o LLM (PROVEDOR no .env)
 ├── .env.example
 ├── requirements.txt
-├── exemplos/            # 01..10
-└── desafio/             # enunciado, esqueleto, Mock e casos de teste
+├── exemplos/            # 01..11
+├── desafio/             # ENUNCIADO.md, README, esqueleto, Mock, pontos de controle e o MCP Server da Parte B
+├── desafio2/            # ENUNCIADO.md, README, esqueleto, Mock, MCP Server e dados
+├── desafio3/            # ENUNCIADO.md, README, esqueleto, jev.py (cliente do JEV) e pontos de controle
+├── exercicio_guiado/    # grafo -> Mermaid -> MCP (README com passos, esqueletos e testes)
+└── demo_cofre/          # o cofre (ENUNCIADO.md + README): o menor grafo com decisão, ciclo e parada
 ```
 
 ## LangGraph
@@ -127,13 +140,16 @@ Ao estourar, o LangGraph levanta `GraphRecursionError` (mostrado no exemplo 08).
 
 ## Provedores de LLM (Mock, OpenAI, Ollama, Claude)
 
-Mesmo padrão da Aula 5: a variável `PROVEDOR` (no `.env` ou no ambiente) escolhe o
+Mesmo padrão das Aulas 4 e 5: a variável `PROVEDOR` (no `.env` ou no ambiente) escolhe o
 modelo, lida em [`provedor.py`](provedor.py). **O grafo não muda**, só o provedor.
+
+> **Exemplos 09, 10 e 11 usam LLM REAL por padrão (`openai`, como nas Aulas 4 e 5).** Os desafios também (o `main.py`; os testes e o `conferir.py` usam sempre o Mock). Os exemplos 01 a 08 continuam no Mock. Se o provedor real não puder ser usado (sem `OPENAI_API_KEY`, ou Ollama fora do ar),
+> o exemplo **avisa e roda com o Mock**, então a aula não trava. `PROVEDOR=mock` força o Mock em qualquer exemplo.
 
 | `PROVEDOR` | O que é | Precisa de |
 |---|---|---|
-| `mock` (padrão) | LLM de mentira, determinístico | nada (sem internet, sem chave) |
-| `openai` | OpenAI | `OPENAI_API_KEY` |
+| `mock` | LLM de mentira, determinístico (padrão dos exemplos 01-08; nos testes dos desafios) | nada (sem internet, sem chave) |
+| `openai` (padrão dos exemplos 09, 10 e 11 e dos desafios) | OpenAI | `OPENAI_API_KEY` |
 | `ollama` | modelo local, grátis | Ollama rodando + modelo baixado |
 | `claude` | Anthropic (opcional) | `ANTHROPIC_API_KEY` |
 
@@ -142,7 +158,7 @@ Configuração: `copy .env.example .env` e preencha só o que for usar. O `.env`
 
 ### Mock
 
-`ModeloMock` roda sem internet e sem chave, e é o padrão. Foi escrito para produzir um
+`ModeloMock` roda sem internet e sem chave, e é o padrão dos exemplos 01-08 e dos desafios (e o que entra quando falta chave nos exemplos 09 e 10). Foi escrito para produzir um
 fluxo realista, inclusive uma primeira análise reprovada na validação para que o ciclo
 de revisão apareça na execução.
 
@@ -177,7 +193,7 @@ $env:ANTHROPIC_API_KEY = "sua-chave"
 python exemplos\10_agente_completo\main.py
 ```
 
-Para voltar ao Mock: `$env:PROVEDOR = "mock"`. Com LLM real, a 1ª análise pode passar
+Para voltar ao Mock: `$env:PROVEDOR = "mock"`. Para o Ollama (local, grátis): `$env:PROVEDOR = "ollama"` (com `ollama serve` no ar e o modelo baixado). Com LLM real, a 1ª análise pode passar
 direto na validação e o ciclo de revisão não aparecer (é esperado).
 
 ## Desafio
@@ -195,7 +211,7 @@ python -m unittest desafio.test_desafio -v
 
 - **`ModuleNotFoundError: langgraph`** — o ambiente virtual não está ativo; rode `.venv\Scripts\Activate.ps1`.
 - **`GraphRecursionError`** — no exemplo 08 é intencional (demonstra o ciclo sem parada). Em outro lugar, seu ciclo não tem condição de parada.
-- **Chave ausente** (`OPENAI_API_KEY`/`ANTHROPIC_API_KEY`) — o exemplo aborta com mensagem clara; use `PROVEDOR=mock` ou `ollama`.
+- **Aviso "usando o Mock"** nos exemplos 09/10 — falta `OPENAI_API_KEY` (ou o Ollama não responde). Copie `.env.example` para `.env` e preencha a chave, ou use `PROVEDOR=ollama` com `ollama serve` no ar.
 - **Ollama lento ou sem resposta** — confira `ollama list` e se o modelo de `OLLAMA_MODEL` existe.
 
 ## Checklist final
@@ -206,6 +222,6 @@ python -m unittest desafio.test_desafio -v
 - [ ] Rodei 06 e vi os dois caminhos (simples e complexa)
 - [ ] Rodei 07 e sei por que é um DAG
 - [ ] Rodei 08 e sei qual é a condição de parada do ciclo
-- [ ] Rodei 09/10 com o Mock e li o log `[nó]` do caminho percorrido
+- [ ] Rodei 09/10 com LLM real (OpenAI ou Ollama) e li o log `[nó]` do caminho percorrido (sem chave, o exemplo avisa e usa o Mock)
 - [ ] Rodei 10 com Ollama, OpenAI ou Claude sem alterar o grafo (opcional)
 - [ ] Resolvi o desafio

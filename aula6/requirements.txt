@@ -11,3 +11,5 @@ anthropic>=1.8,<2.0  # PROVEDOR=claude (opcional)
 # aqui só porque passamos a usá-lo diretamente (LANGSMITH_TRACING=true). Sem API Key
 # configurada, tracing fica desligado e nada muda no comportamento dos exemplos.
 langsmith>=0.14,<1.0
+# Exemplo 11 e desafio 2: nós que chamam um MCP Server (mesmo pacote da Aula 5)
+mcp>=2.0

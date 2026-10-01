@@ -20,11 +20,14 @@ O grafo só conhece a abstração `Modelo` (método gerar). Quem é o modelo --
 Mock, OpenAI, Ollama ou Claude -- é decidido pela variável PROVEDOR, lida em
 provedor.py (mesmo padrão da Aula 5). NENHUMA chamada a SDK aparece no grafo.
 
-Rodar (Mock, padrão -- sem API Key):
+Rodar (LLM REAL por padrão: OpenAI, como nas Aulas 4 e 5; Ollama com PROVEDOR=ollama):
     python main.py
 
 Trocar de modelo SEM alterar este arquivo (PowerShell):
     $env:PROVEDOR = "ollama"     # ou "openai" / "claude" (veja ../../.env.example)
+    $env:PROVEDOR = "mock"       # LLM de mentira: sem chave e sem internet (mostra o ciclo de revisão sempre)
+
+Sem OPENAI_API_KEY (ou com o Ollama fora do ar), o exemplo AVISA e roda com o Mock.
     python main.py
 """
 import sys
@@ -39,7 +42,7 @@ from modelo_mock import ModeloMock
 from provedor import obter_modelo
 
 # Único ponto do arquivo que sabe qual modelo está em uso.
-modelo = obter_modelo(ModeloMock())
+modelo = obter_modelo(ModeloMock(), padrao="openai")  # LLM real por padrão; sem chave, cai no Mock com aviso
 
 
 class Estado(TypedDict):

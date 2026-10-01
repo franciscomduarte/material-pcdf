@@ -32,12 +32,15 @@ Quem "pensa" são os LLMs dos nós; quem controla a ORDEM é o grafo.
 'pesquisar' é uma TOOL (função comum): mostra que no grafo cabem LLM, tools
 e -- num sistema real -- chamadas MCP ou A2A, todos como nós.
 
-Rodar (Mock, padrão -- sem API Key):
+Rodar (LLM REAL por padrão: OpenAI, como nas Aulas 4 e 5; Ollama com PROVEDOR=ollama):
     python main.py
     python main.py "Qual o horário de atendimento?"        # caminho simples
 
 Trocar de modelo SEM alterar este arquivo (PowerShell):
     $env:PROVEDOR = "ollama"    # ou "openai" / "claude" (veja ../../.env.example)
+    $env:PROVEDOR = "mock"      # LLM de mentira: sem chave e sem internet (mostra o ciclo de revisão sempre)
+
+Sem OPENAI_API_KEY (ou com o Ollama fora do ar), o exemplo AVISA e roda com o Mock.
 """
 import sys
 from pathlib import Path
@@ -50,7 +53,7 @@ from langgraph.graph import END, START, StateGraph
 from modelo_mock import ModeloMock
 from provedor import obter_modelo
 
-modelo = obter_modelo(ModeloMock())  # o grafo só conhece a abstração Modelo
+modelo = obter_modelo(ModeloMock(), padrao="openai")  # LLM real por padrão; sem chave, cai no Mock com aviso
 
 MAX_TENTATIVAS = 3
 
