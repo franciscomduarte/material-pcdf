@@ -38,9 +38,8 @@ Rodar (LLM REAL por padrão: OpenAI, como nas Aulas 4 e 5; Ollama com PROVEDOR=o
 
 Trocar de modelo SEM alterar este arquivo (PowerShell):
     $env:PROVEDOR = "ollama"    # ou "openai" / "claude" (veja ../../.env.example)
-    $env:PROVEDOR = "mock"      # LLM de mentira: sem chave e sem internet (mostra o ciclo de revisão sempre)
 
-Sem OPENAI_API_KEY (ou com o Ollama fora do ar), o exemplo AVISA e roda com o Mock.
+O padrão é a OpenAI (OPENAI_API_KEY no .env). Para usar o Ollama: $env:PROVEDOR = "ollama". Não há Mock: sem LLM real, o exemplo para.
 """
 import sys
 from pathlib import Path
@@ -50,10 +49,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from langgraph.graph import END, START, StateGraph
 
-from modelo_mock import ModeloMock
-from provedor import obter_modelo
+from provedor import obter_modelo_real
 
-modelo = obter_modelo(ModeloMock(), padrao="openai")  # LLM real por padrão; sem chave, cai no Mock com aviso
+modelo = obter_modelo_real("openai")  # LLM REAL: OpenAI por padrão (como nas Aulas 4 e 5); Ollama só com PROVEDOR=ollama
 
 MAX_TENTATIVAS = 3
 

@@ -127,26 +127,37 @@ def obter_modelo(mock: Modelo, padrao: str = "mock") -> Modelo:
     raise SystemExit(f"PROVEDOR desconhecido: {provedor!r}. Use mock, openai, ollama ou claude.")
 
 
-def obter_modelo_real() -> Modelo:
-    """Devolve o Modelo REAL do provedor escolhido em PROVEDOR (padrão: openai). Para os desafios SEM Mock.
+def obter_modelo_real(padrao: str = "") -> Modelo:
+    """Devolve o Modelo REAL. Para os exemplos 09, 10 e 11 e para o desafio 2: SEM Mock.
 
-    Sem chave (ou com o Ollama fora do ar) o programa PARA com uma mensagem dizendo o que fazer: não há LLM de mentira.
+    `padrao` é o provedor usado quando PROVEDOR não está definido (os exemplos 09, 10 e 11 passam "openai", como nas Aulas 4 e 5).
+    Sem `padrao` e sem PROVEDOR, escolhe sozinho: OpenAI se houver OPENAI_API_KEY; senão, o Ollama local (se estiver no ar).
+    Com PROVEDOR definido (openai, ollama ou claude), usa esse.
+    Se nenhum LLM real estiver disponível, o programa PARA e diz o que fazer: não há LLM de mentira.
     """
     ajuda = (
         "Configure um LLM real: copie o .env.example para .env e preencha.\n"
-        "  - OpenAI: PROVEDOR=openai e OPENAI_API_KEY=...\n"
-        "  - Ollama (grátis, local): PROVEDOR=ollama, `ollama serve` no ar e o modelo baixado (`ollama pull <modelo>`)."
+        "  - OpenAI (padrão): OPENAI_API_KEY=...\n"
+        "  - Ollama (grátis, local): `ollama serve` no ar e o modelo baixado (`ollama pull <modelo>`)."
     )
-    provedor = os.getenv("PROVEDOR", "openai").strip().lower()
+    provedor = os.getenv("PROVEDOR", padrao).strip().lower()
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    if not provedor:  # escolha automática: OpenAI se houver chave; senão, Ollama
+        if os.getenv("OPENAI_API_KEY"):
+            provedor = "openai"
+        elif _ollama_no_ar(base_url):
+            provedor = "ollama"
+        else:
+            raise SystemExit("Nenhum LLM real disponível: não há OPENAI_API_KEY e o Ollama não responde em "
+                             f"{base_url}.\n" + ajuda)
     if provedor == "mock":
-        raise SystemExit("Este desafio não usa Mock: ele roda só com LLM real.\n" + ajuda)
+        raise SystemExit("Este programa não usa Mock: ele roda só com LLM real.\n" + ajuda)
     if provedor == "openai":
         chave = os.getenv("OPENAI_API_KEY")
         if not chave:
             raise SystemExit("PROVEDOR=openai exige OPENAI_API_KEY.\n" + ajuda)
         return ModeloOpenAI(api_key=chave, modelo=os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o-mini"))
     if provedor == "ollama":
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
         if not _ollama_no_ar(base_url):
             raise SystemExit(f"PROVEDOR=ollama, mas o Ollama não responde em {base_url}. Rode `ollama serve`.\n" + ajuda)
         return ModeloOpenAI(base_url=base_url, api_key="ollama", modelo=os.getenv("OLLAMA_MODEL", "llama3.1"), nome="ollama")

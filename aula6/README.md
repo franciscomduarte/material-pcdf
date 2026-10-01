@@ -143,12 +143,11 @@ Ao estourar, o LangGraph levanta `GraphRecursionError` (mostrado no exemplo 08).
 Mesmo padrão das Aulas 4 e 5: a variável `PROVEDOR` (no `.env` ou no ambiente) escolhe o
 modelo, lida em [`provedor.py`](provedor.py). **O grafo não muda**, só o provedor.
 
-> **Exemplos 09, 10 e 11 usam LLM REAL por padrão (`openai`, como nas Aulas 4 e 5).** Os desafios também (o `main.py`; os testes e o `conferir.py` usam sempre o Mock). Os exemplos 01 a 08 continuam no Mock. Se o provedor real não puder ser usado (sem `OPENAI_API_KEY`, ou Ollama fora do ar),
-> o exemplo **avisa e roda com o Mock**, então a aula não trava. `PROVEDOR=mock` força o Mock em qualquer exemplo.
+> **Exemplos 09, 10 e 11 usam LLM REAL, sem Mock.** O padrão é a **OpenAI** (`OPENAI_API_KEY`, como nas Aulas 4 e 5); para usar o **Ollama** local, defina `PROVEDOR=ollama`. Sem LLM real, o programa **para** e diz o que fazer. O desafio 2 também não usa Mock. Os exemplos 01 a 08 continuam no Mock, e os desafios 1 e 3 ainda caem no Mock (com aviso) quando falta chave.
 
 | `PROVEDOR` | O que é | Precisa de |
 |---|---|---|
-| `mock` | LLM de mentira, determinístico (padrão dos exemplos 01-08; nos testes dos desafios) | nada (sem internet, sem chave) |
+| `mock` | LLM de mentira, determinístico (padrão dos exemplos 01-08; nos testes dos desafios 1 e 3) | nada (sem internet, sem chave) |
 | `openai` (padrão dos exemplos 09, 10 e 11 e dos desafios) | OpenAI | `OPENAI_API_KEY` |
 | `ollama` | modelo local, grátis | Ollama rodando + modelo baixado |
 | `claude` | Anthropic (opcional) | `ANTHROPIC_API_KEY` |
@@ -158,7 +157,7 @@ Configuração: `copy .env.example .env` e preencha só o que for usar. O `.env`
 
 ### Mock
 
-`ModeloMock` roda sem internet e sem chave, e é o padrão dos exemplos 01-08 e dos desafios (e o que entra quando falta chave nos exemplos 09 e 10). Foi escrito para produzir um
+`ModeloMock` roda sem internet e sem chave, e é o padrão dos exemplos 01-08 e dos testes dos desafios 1 e 3. Os exemplos 09, 10 e 11 e o desafio 2 **não** o usam. Foi escrito para produzir um
 fluxo realista, inclusive uma primeira análise reprovada na validação para que o ciclo
 de revisão apareça na execução.
 
@@ -211,7 +210,7 @@ python -m unittest desafio.test_desafio -v
 
 - **`ModuleNotFoundError: langgraph`** — o ambiente virtual não está ativo; rode `.venv\Scripts\Activate.ps1`.
 - **`GraphRecursionError`** — no exemplo 08 é intencional (demonstra o ciclo sem parada). Em outro lugar, seu ciclo não tem condição de parada.
-- **Aviso "usando o Mock"** nos exemplos 09/10 — falta `OPENAI_API_KEY` (ou o Ollama não responde). Copie `.env.example` para `.env` e preencha a chave, ou use `PROVEDOR=ollama` com `ollama serve` no ar.
+- **"PROVEDOR=openai exige OPENAI_API_KEY"** nos exemplos 09, 10 e 11 — copie `.env.example` para `.env` e preencha a chave, ou use `PROVEDOR=ollama` com `ollama serve` no ar.
 - **Ollama lento ou sem resposta** — confira `ollama list` e se o modelo de `OLLAMA_MODEL` existe.
 
 ## Checklist final

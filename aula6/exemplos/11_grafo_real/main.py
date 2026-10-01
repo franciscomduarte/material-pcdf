@@ -37,8 +37,8 @@ O que este exemplo mostra: o grafo NÃO se importa com o TIPO do nó. LLM, MCP,
 API, tool e função são todos "função que lê o estado e devolve uma atualização".
 O grafo só decide a ORDEM; cada nó cuida do seu trabalho (e das suas falhas).
 
-Rodar (LLM REAL por padrão: OpenAI, como nas Aulas 4 e 5; Ollama com $env:PROVEDOR = "ollama"; precisa do pacote `mcp`).
-Sem OPENAI_API_KEY (ou com o Ollama fora do ar), AVISA e roda com o Mock; $env:PROVEDOR = "mock" força o Mock:
+Rodar (LLM REAL: OpenAI, como nas Aulas 4 e 5, ou Ollama; precisa do pacote `mcp`).
+O padrão é a OpenAI (OPENAI_API_KEY no .env). Para usar o Ollama: $env:PROVEDOR = "ollama". Não há Mock: sem LLM real, o exemplo para:
     python main.py
     python main.py "Planeje o efetivo da Região Bravo de 2026-09-25 a 2026-09-28"
 
@@ -60,10 +60,9 @@ from langgraph.graph import END, START, StateGraph
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from modelo_mock import ModeloMock
-from provedor import obter_modelo
+from provedor import obter_modelo_real
 
-modelo = obter_modelo(ModeloMock(), padrao="openai")  # LLM real por padrão; sem chave, cai no Mock com aviso
+modelo = obter_modelo_real("openai")  # LLM REAL: OpenAI por padrão (como nas Aulas 4 e 5); Ollama só com PROVEDOR=ollama
 
 MAX_TENTATIVAS = 3
 SERVER_MCP = str(Path(__file__).resolve().parent / "mcp_operacoes.py")

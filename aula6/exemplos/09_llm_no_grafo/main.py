@@ -17,7 +17,7 @@ O que importa neste exemplo NÃO é o grafo (é linear de propósito). É isto:
                     próximo nó     <- o texto vira campo do ESTADO
 
 O grafo só conhece a abstração `Modelo` (método gerar). Quem é o modelo --
-Mock, OpenAI, Ollama ou Claude -- é decidido pela variável PROVEDOR, lida em
+OpenAI, Ollama ou Claude -- é decidido pela variável PROVEDOR, lida em
 provedor.py (mesmo padrão da Aula 5). NENHUMA chamada a SDK aparece no grafo.
 
 Rodar (LLM REAL por padrão: OpenAI, como nas Aulas 4 e 5; Ollama com PROVEDOR=ollama):
@@ -25,9 +25,8 @@ Rodar (LLM REAL por padrão: OpenAI, como nas Aulas 4 e 5; Ollama com PROVEDOR=o
 
 Trocar de modelo SEM alterar este arquivo (PowerShell):
     $env:PROVEDOR = "ollama"     # ou "openai" / "claude" (veja ../../.env.example)
-    $env:PROVEDOR = "mock"       # LLM de mentira: sem chave e sem internet (mostra o ciclo de revisão sempre)
 
-Sem OPENAI_API_KEY (ou com o Ollama fora do ar), o exemplo AVISA e roda com o Mock.
+O padrão é a OpenAI (OPENAI_API_KEY no .env). Para usar o Ollama: $env:PROVEDOR = "ollama". Não há Mock: sem LLM real, o exemplo para.
     python main.py
 """
 import sys
@@ -38,11 +37,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from langgraph.graph import END, START, StateGraph
 
-from modelo_mock import ModeloMock
-from provedor import obter_modelo
+from provedor import obter_modelo_real
 
 # Único ponto do arquivo que sabe qual modelo está em uso.
-modelo = obter_modelo(ModeloMock(), padrao="openai")  # LLM real por padrão; sem chave, cai no Mock com aviso
+modelo = obter_modelo_real("openai")  # LLM REAL: OpenAI por padrão (como nas Aulas 4 e 5); Ollama só com PROVEDOR=ollama
 
 
 class Estado(TypedDict):
@@ -110,18 +108,19 @@ construtor.add_edge("responder", END)
 
 app = construtor.compile()
 
-print(f"Modelo em uso: {modelo.nome}\n")
+if __name__ == "__main__":
+    print(f"Modelo em uso: {modelo.nome}\n")
 
-resultado = app.invoke(
-    {"solicitacao": "Preciso saber quais são os procedimentos para solicitar uma segunda via de um documento."}
-)
+    resultado = app.invoke(
+        {"solicitacao": "Preciso saber quais são os procedimentos para solicitar uma segunda via de um documento."}
+    )
 
-print("\nCategoria:", resultado["categoria"])
-print("Análise  :", resultado["analise"])
-print("Resposta :", resultado["resposta"])
+    print("\nCategoria:", resultado["categoria"])
+    print("Análise  :", resultado["analise"])
+    print("Resposta :", resultado["resposta"])
 
 # ---------------------------------------------------------------------------
-# Repare no que NÃO mudou entre Mock, Ollama, OpenAI e Claude: o grafo, os nós
+# Repare no que NÃO mudou entre Ollama, OpenAI e Claude: o grafo, os nós
 # e o estado. Só o objeto `modelo`. LangGraph controla o FLUXO; o LLM é apenas
 # uma capacidade chamada dentro de um nó -- como uma tool ou um MCP seria.
 # ---------------------------------------------------------------------------

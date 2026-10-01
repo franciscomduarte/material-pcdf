@@ -37,7 +37,7 @@ python -c "import langgraph, mcp; print('langgraph e mcp OK')"
 python exemplos\10_agente_completo\main.py
 ```
 
-Você deve ver o agente da Aula 6 rodando com o Mock. É **esse** grafo que vamos desenhar.
+Você deve ver o agente da Aula 6 rodando com o LLM real (OpenAI, ou o Ollama se não houver chave). É **esse** grafo que vamos desenhar.
 
 ## Passo 1 — Gerar o Mermaid (10 min)
 
