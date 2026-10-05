@@ -56,7 +56,7 @@ class Ponto1(unittest.TestCase):
 
 
 class Ponto2(unittest.TestCase):
-    """avaliar (JEV) guarda os NÚMEROS no estado."""
+    """avaliar (modelo de decisão) guarda os NÚMEROS no estado."""
 
     def test_avaliar_guarda_probabilidades(self):
         estado, caminho = rodar(URGENTE)
@@ -120,7 +120,7 @@ class Ponto6(unittest.TestCase):
 PONTOS = [
     (Ponto1, "receber inicializa todos os campos",
      "receber devolve um dict com os 8 campos do Estado ('' / 0.0). Ligue START -> receber -> END."),
-    (Ponto2, "avaliar (JEV): os números no estado",
+    (Ponto2, "avaliar (modelo de decisão): os números no estado",
      "respostas = jev.decidir(estado['solicitacao'], PERGUNTAS_JEV); devolva p_urgente, p_sensivel, assunto e confianca. "
      "Ligue receber -> avaliar -> END."),
     (Ponto3, "caminho urgente (o roteador decide pelo número)",

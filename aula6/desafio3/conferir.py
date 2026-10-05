@@ -77,7 +77,7 @@ def mostrar_grafo_atual(ponto_atual: int | None) -> None:
         (PASTA_SAIDA / "grafo_por_tipo.mmd").write_text(por_tipo, encoding="utf-8")
         (PASTA_SAIDA / "grafo_por_tipo.md").write_text(f"# Grafo por tipo de nó\n\n```mermaid\n{por_tipo}\n```\n", encoding="utf-8")
         print("\n" + "=" * 70)
-        print("O MESMO GRAFO, COLORIDO PELO TIPO DE NÓ: JEV (rosa) | LLM (azul) | tool (roxo) | função (cinza)")
+        print("O MESMO GRAFO, COLORIDO PELO TIPO DE NÓ: modelo de decisão (rosa) | LLM (azul) | tool (roxo) | função (cinza)")
         print("=" * 70)
         print(por_tipo)
         print("Salvo em desafio3/saida/grafo_por_tipo.mmd e .md")
@@ -98,7 +98,7 @@ def main() -> None:
             proximo = (i, titulo, dica, erro)
     print()
     if proximo is None:
-        print(f"Todos os {TOTAL} pontos passaram. Rode as 5 perguntas (com o JEV real, 5 créditos):")
+        print(f"Todos os {TOTAL} pontos passaram. Rode as 5 perguntas (com o modelo de decisão real: JEV gasta 5 créditos, Laya é local e grátis):")
         print("    python desafio3\\main.py --perguntas")
         mostrar_grafo_atual(None)
         return

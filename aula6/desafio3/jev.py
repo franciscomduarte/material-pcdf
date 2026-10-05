@@ -22,7 +22,8 @@ Duas implementações com a MESMA interface (como o LLM e o Mock nas outras aula
     JevReal  chama https://jev-ai.pro/api/v1/systemone (precisa de JEV_AI_API_KEY no .env; a chave NUNCA vai no código)
     JevMock  decisões determinísticas por palavras-chave: é o que os TESTES usam (sem internet, sem gastar créditos)
 
-obter_jev(): usa o JEV real se houver JEV_AI_API_KEY; sem a chave, AVISA e usa o Mock. JEV=mock força o Mock.
+obter_jev(): o decisor REAL. JEV real (com JEV_AI_API_KEY) ou Laya local ($env:JEV = "laya"). Sem nenhum dos dois, o programa PARA
+    e diz o que fazer: não há decisor de mentira nos exemplos (o JevMock existe só para os testes: conferir.py e test_pontos.py).
 """
 import json
 import os
@@ -62,6 +63,21 @@ class JevReal:
             raise RuntimeError(f"JEV respondeu {erro.code}: {motivos.get(erro.code, 'erro do serviço')}") from erro
 
 
+class LayaLocal:
+    """Laya (open source, Apache 2.0): o MESMO tipo de decisão tipada do JEV, mas RODA NA SUA MÁQUINA.
+    Sem API, sem chave, sem créditos. Mesma interface: decidir(texto, perguntas) -> mapa de respostas.
+    Instalação: pip install laya  (baixa o modelo na 1ª vez; usa o checkpoint multilíngue para português)."""
+
+    nome = "laya-local"
+
+    def __init__(self):
+        from laya import Router  # import tardio: só quem usa o Laya precisa do pacote (e do torch)
+        self.router = Router()   # carrega o modelo uma vez (demora na 1ª execução)
+
+    def decidir(self, texto: str, perguntas: dict) -> dict:
+        return self.router.predict({"body": texto}, perguntas)["answers"]
+
+
 class JevMock:
     """JEV de mentira, DETERMINÍSTICO: decide por palavras-chave. Usado nos testes (sem internet e sem créditos).
     Imita o formato das respostas do JEV real para as perguntas "urgente", "sensivel" e "assunto"."""
@@ -93,12 +109,12 @@ class JevMock:
 
 
 def obter_jev():
-    """O JEV real (com JEV_AI_API_KEY) ou, sem a chave, o Mock COM AVISO. JEV=mock força o Mock."""
-    if os.getenv("JEV", "").strip().lower() == "mock":
-        return JevMock()
+    """O decisor REAL: o Laya local (JEV=laya) ou o JEV (com JEV_AI_API_KEY). Sem nenhum dos dois, o programa PARA."""
+    if os.getenv("JEV", "").strip().lower() == "laya":  # JEV=laya: o decisor local (sem chave, sem créditos)
+        return LayaLocal()
     chave = os.getenv("JEV_AI_API_KEY")
     if not chave:
-        print("AVISO: JEV_AI_API_KEY não está definida; usando o JEV de mentira (JevMock). "
-              "Para o JEV real, coloque a chave no .env.", file=sys.stderr)
-        return JevMock()
+        raise SystemExit("Nenhum decisor real disponível. Escolha um:\n"
+                         "  - JEV (API):  coloque JEV_AI_API_KEY no .env (cada pergunta gasta 1 crédito)\n"
+                         "  - Laya (local, grátis):  pip install laya  e  $env:JEV = \"laya\"")
     return JevReal(chave)

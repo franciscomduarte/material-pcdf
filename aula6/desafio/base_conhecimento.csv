@@ -1,4 +1,5 @@
 assunto,texto,prazo_dias_uteis
-segunda via,"Agendar atendimento; levar documento com foto; pagar a taxa de emissão.",5
+segunda via,"Agendar atendimento; levar certidão de casamento; pagar a taxa de emissão e multa.",5
 passaporte,"Preencher o formulário online; agendar a Polícia Federal; pagar a GRU.",10
 horário,"Atendimento de segunda a sexta, das 8h às 17h.",0
+imposto_renda,"Preencher o formulário online; agendar atendimento; levar documentos pessoais e comprovantes de renda.",15

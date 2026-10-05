@@ -252,12 +252,30 @@ def construir_grafo(modelo):
     """
     #colocar a função 1 aqui
     # def receber(estado):
+    def receber(estado):
+        return {
+            "solicitacao": estado["solicitacao"].strip(),
+            "urgencia": "",
+            "informacao": "",
+            "encaminhamento": "",
+            "analise": "",
+            "valida": False,
+            "tentativas": 0,
+            "feedback": "",
+            "resposta": "",
+
+            "prazo_dias": 0,
+            "feriados": [],
+            "prazo_final": ""
+        }
 
     """
     FUNÇÃO PONTO 2 -- classificar_urgencia. nó LLM: texto = modelo.gerar(prompt_classificar(estado)); devolva {"urgencia": normalizar_urgencia(texto)}
     """
     #colocar a função 2 aqui
     # def classificar_urgencia(estado):
+    def classificar_urgencia(estado):
+        return {"urgencia": normalizar_urgencia(modelo.gerar(prompt_classificar(estado)))}
 
     """
     FUNÇÃO PONTO 3 -- caminho URGENTE: encaminhar (tool), responder (LLM) e o roteador.
@@ -267,10 +285,16 @@ def construir_grafo(modelo):
     """
     #colocar a função 3 aqui
     # def encaminhar(estado):
+    def encaminhar(estado):
+        return {"encaminhamento": encaminhar_plantao(estado["solicitacao"])}
 
     # def responder(estado):
+    def responder(estado):
+        return {"resposta": modelo.gerar(prompt_responder(estado))}
 
     # def rotear_apos_classificar(estado):
+    def rotear_apos_classificar(estado):
+        return estado["urgencia"]
 
     """
     FUNÇÃO PONTO 4 -- caminho SEM BASE: pesquisar (tool) e o roteador.
@@ -279,8 +303,15 @@ def construir_grafo(modelo):
     """
     #colocar a função 4 aqui
     # def pesquisar(estado):
+    def pesquisar(estado):
+        achados = chamar_mcp("consultar_base", {"solicitacao": estado["solicitacao"]}) # lista; vazia = não sabe
+        if not achados:
+            return {"informacao": "", "prazo_dias": 0}
+        return {"informacao": achados[0]["texto"], "prazo_dias": achados[0]["prazo_dias_uteis"]}
 
     # def rotear_apos_pesquisar(estado):
+    def rotear_apos_pesquisar(estado):
+        return "com_base" if estado["informacao"] else "sem_base"
 
     """
     FUNÇÃO PONTO 5 -- análise e validação: analisar e validar (nós LLM).
@@ -289,8 +320,14 @@ def construir_grafo(modelo):
     """
     #colocar a função 5 aqui
     # def analisar(estado):
+    def analisar(estado):
+        return {"analise": modelo.gerar(prompt_analisar(estado)), "tentativas": estado["tentativas"] + 1}
 
     #def validar(estado):
+    def validar(estado):
+        texto = modelo.gerar(prompt_validar(estado))
+        ok = analise_aprovada(texto)
+        return {"valida": ok, "feedback": "" if ok else texto.strip()}
 
     """
     FUNÇÃO PONTO 6 -- o CICLO: revisar (nó) e o roteador de validar.
@@ -299,6 +336,8 @@ def construir_grafo(modelo):
     """
     #colocar a função 6 aqui
     # def revisar(estado):
+    def revisar(estado):
+        return {"feedback": f"corrija — {estado['feedback']}"}
 
     # def rotear_apos_validar(estado):
 
@@ -308,6 +347,15 @@ def construir_grafo(modelo):
         ("desistir" é um RÓTULO do roteador, não uma função nem um nó)
         a condição de parada é lida do ESTADO, não de uma variável local
     """
+
+    def rotear_apos_validar(estado):
+        if estado["valida"]:
+            return "ok"
+        elif estado["tentativas"] >= MAX_TENTATIVAS:
+            return "desistir"
+        else:
+            return "erro"
+
     #no ponto 7 você só acrescenta duas linhas em rotear_apos_validar
 
     # ----------------------------------------------------------------------------------------------
@@ -327,6 +375,7 @@ def construir_grafo(modelo):
     """
     #no ponto 8 você EDITA pesquisar e receber (não há função nova)
 
+
     """
     FUNÇÃO PONTO 9 -- consultar_feriados é um nó de API (HTTP, BrasilAPI).
         consultar_feriados: {"feriados": buscar_feriados(DATA_PEDIDO.year)}     (buscar_feriados já vem pronta e já
@@ -334,6 +383,8 @@ def construir_grafo(modelo):
     """
     #colocar a função 9 aqui
     # def consultar_feriados(estado):
+    def consultar_feriados(estado):
+        return {"feriados": buscar_feriados(DATA_PEDIDO.year)}
 
     """
     FUNÇÃO PONTO 10 -- calcular_prazo é um nó de TOOL (cálculo local, sem IA).
@@ -343,6 +394,18 @@ def construir_grafo(modelo):
     """
     #colocar a função 10 aqui
     # def calcular_prazo(estado):
+    def somar_dias_uteis(inicio, dias, feriados):
+        atual, contados = inicio, 0
+        while contados < dias:
+            atual += timedelta(days=1)
+            if atual.weekday() < 5 and atual.isoformat() not in feriados:
+                contados += 1
+        return atual
+    
+    def calcular_prazo(estado):
+        if not estado["prazo_dias"]:
+            return {"prazo_final": ""}
+        return {"prazo_final": somar_dias_uteis(DATA_PEDIDO, estado["prazo_dias"], estado["feriados"]).isoformat()}
 
     # ==============================================================================================
     # FASE B -- LIGAR OS PONTOS
@@ -353,17 +416,15 @@ def construir_grafo(modelo):
         dica: construtor.add_node("receber", receber)  e  construtor.add_edge(START, "receber")
     """
     construtor = StateGraph(Estado)
-    # construtor.add_node("receber", receber)
-    # construtor.add_edge(START, "receber")
-
-    # teste isolado do ponto 1: construtor.add_edge("receber", END)   (apague no ponto 2)
-
+    construtor.add_node("receber", receber)
+    construtor.add_edge(START, "receber")
+    
     """
     PONTO 2 -- classificar_urgencia.  Grafo: START -> receber -> classificar_urgencia -> END
         dica: add_node("classificar_urgencia", ...)  e  add_edge("receber", "classificar_urgencia")
     """
-    # construtor.add_node("classificar_urgencia", classificar_urgencia)
-    # construtor.add_edge("receber", "classificar_urgencia")
+    construtor.add_node("classificar_urgencia", classificar_urgencia)
+    construtor.add_edge("receber", "classificar_urgencia")
 
     # teste isolado do ponto 2: construtor.add_edge("classificar_urgencia", END)   (apague no ponto 3)
 
@@ -374,11 +435,11 @@ def construir_grafo(modelo):
               add_edge("encaminhar", "responder")  e  add_edge("responder", END)
         (até o ponto 4 existir, "normal" vai para END)
     """
-    # construtor.add_node("encaminhar", encaminhar)
-    # construtor.add_node("responder", responder)
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("encaminhar", "responder")
-    # construtor.add_edge("responder", END)
+    construtor.add_node("encaminhar", encaminhar)
+    construtor.add_node("responder", responder)
+    construtor.add_conditional_edges("classificar_urgencia", rotear_apos_classificar, {"urgente": "encaminhar", "normal": "pesquisar"})
+    construtor.add_edge("encaminhar", "responder")
+    
 
     # teste isolado do ponto 3: rode o conferir (o caminho urgente já fecha com END)
 
@@ -389,9 +450,9 @@ def construir_grafo(modelo):
               add_conditional_edges("pesquisar", rotear_apos_pesquisar, {"com_base": "responder", "sem_base": "responder"})
         (por ora "com_base" também vai para responder; o ponto 5 o troca por analisar)
     """
-    # construtor.add_node("pesquisar", pesquisar)
-    # construtor.add_conditional_edges(...)
-
+    construtor.add_node("pesquisar", pesquisar)
+    construtor.add_conditional_edges("pesquisar", rotear_apos_pesquisar, {"com_base": "consultar_feriados", "sem_base": "responder"})
+    
     # teste isolado do ponto 4: rode o conferir (os dois rótulos já fecham em responder)
 
     """
@@ -400,11 +461,9 @@ def construir_grafo(modelo):
               no ponto 4, troque "com_base": "responder" por "com_base": "analisar"
               add_edge("analisar", "validar")
     """
-    # construtor.add_node("analisar", analisar)
-    # construtor.add_node("validar", validar)
-    # construtor.add_edge("analisar", "validar")
-
-    # teste isolado do ponto 5: construtor.add_edge("validar", "responder")   (apague no ponto 6)
+    construtor.add_node("analisar", analisar)
+    construtor.add_node("validar", validar)
+    construtor.add_edge("analisar", "validar")
 
     """
     PONTO 6 -- o CICLO.  validar -> (erro) revisar -> analisar
@@ -413,10 +472,11 @@ def construir_grafo(modelo):
               add_edge("revisar", "analisar")   <- o ciclo é UMA ARESTA do grafo (nada de while dentro de um nó!)
         o rótulo "desistir" já está no mapa, mas o roteador só o devolve no ponto 7
     """
-    # construtor.add_node("revisar", revisar)
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("revisar", "analisar")
 
+    construtor.add_node("revisar", revisar)
+    construtor.add_conditional_edges("validar", rotear_apos_validar, {"ok": "responder", "desistir": "responder", "erro": "revisar"})
+    construtor.add_edge("revisar", "analisar")
+    
     # teste do ponto 6: rode o conferir (sem a parada o ponto 7 ainda aparece como ✗)
 
     """
@@ -431,6 +491,7 @@ def construir_grafo(modelo):
     PONTO 8 -- (MCP) nenhuma ligação nova: `pesquisar` está no mesmo lugar, só mudou o que ele faz por dentro.
         confira: o conferir diz se o MCP foi chamado e se o prazo chegou ao estado.
     """
+    # não houve necessidade de mudar o grafo: o roteador continua olhando estado["informacao"] (o MCP devolve "" quando não achou)
 
     """
     PONTO 9 -- (API) normal/com_base -> pesquisar -> consultar_feriados -> analisar
@@ -439,8 +500,7 @@ def construir_grafo(modelo):
               add_edge("consultar_feriados", "analisar")
         (só o caminho COM base passa pela API; o "sem_base" continua indo direto para responder)
     """
-    # construtor.add_node("consultar_feriados", consultar_feriados)
-    # construtor.add_edge("consultar_feriados", "analisar")
+    construtor.add_node("consultar_feriados", consultar_feriados)
 
     """
     PONTO 10 -- (tool) pesquisar -> consultar_feriados -> calcular_prazo -> analisar
@@ -448,9 +508,10 @@ def construir_grafo(modelo):
               APAGUE o add_edge("consultar_feriados", "analisar") e ligue consultar_feriados -> calcular_prazo -> analisar
         no fim, rode `python desafio\\main.py`: ele mostra o grafo colorido pelos TIPOS de nó.
     """
-    # construtor.add_node("calcular_prazo", calcular_prazo)
-    # construtor.add_edge("consultar_feriados", "calcular_prazo")
-    # construtor.add_edge("calcular_prazo", "analisar")
+    construtor.add_node("calcular_prazo", calcular_prazo)
+    construtor.add_edge("consultar_feriados", "calcular_prazo")
+    construtor.add_edge("calcular_prazo", "analisar")
+    construtor.add_edge("analisar", END)
 
     return construtor.compile()
 

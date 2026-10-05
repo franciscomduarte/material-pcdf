@@ -20,7 +20,8 @@ JÁ PRONTO:  jev.py (o cliente do JEV: JevReal e JevMock), as PERGUNTAS_JEV, os 
 SEU:        os NÓS, o ROTEADOR (que decide pelos números) e a MONTAGEM, dentro de construir_grafo().
 
 ATENÇÃO: cada pergunta ao JEV REAL gasta 1 crédito da conta. Os testes (conferir.py) usam o JevMock: não gastam nada.
-         `python desafio3\\main.py` usa o JEV real se houver JEV_AI_API_KEY no .env; sem a chave, avisa e usa o Mock.
+         `python desafio3\\main.py` usa decisor e LLM REAIS: o JEV (JEV_AI_API_KEY no .env) ou o Laya local ($env:JEV = "laya").
+         Sem nenhum dos dois, o programa para e diz o que fazer: não há decisor nem LLM de mentira.
          A chave NUNCA vai no código nem no git.
 """
 import sys                          # sys.path: permite importar provedor.py (na pasta aula6/)
@@ -32,9 +33,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[0]))  # jev.py e modelo_
 
 from langgraph.graph import END, START, StateGraph  # noqa: F401  StateGraph monta o grafo; START e END são a entrada e a saída
 
-from jev import obter_jev                 # o JEV: real (com chave) ou o de mentira (testes)
-from modelo_mock import ModeloMock        # LLM de mentira (determinístico): usado pelos testes e como reserva
-from provedor import obter_modelo         # escolhe o LLM real (OpenAI ou Ollama) pelo .env
+from jev import obter_jev                 # o decisor REAL: JEV (com JEV_AI_API_KEY) ou Laya local (JEV=laya)
+from provedor import obter_modelo_real    # escolhe o LLM REAL (OpenAI ou Ollama) pelo .env; sem ele, o programa para
 
 # ---- LIMIARES: os números a partir dos quais o grafo muda de caminho (experimente mudá-los!) ----
 LIMIAR_URGENTE = 0.8     # probabilidade de "urgente" a partir da qual o caso vai ao plantão
@@ -282,7 +282,7 @@ def mostrar_execucao(app, solicitacao: str):
             estado.update(atualizacao)
     print("\n" + "-" * 70)
     print("CAMINHO PERCORRIDO:", " -> ".join(caminho))
-    print("COMO O JEV DECIDIU:")
+    print("COMO O MODELO DE DECISÃO DECIDIU:")
     print(f"      p_urgente  = {estado.get('p_urgente'):.2f}   (limiar {LIMIAR_URGENTE})")
     print(f"      p_sensivel = {estado.get('p_sensivel'):.2f}   (limiar {LIMIAR_SENSIVEL})")
     print(f"      assunto    = {estado.get('assunto')!r}, confiança {estado.get('confianca'):.2f}   (mínimo {LIMIAR_CONFIANCA})")
@@ -319,11 +319,11 @@ def salvar_mermaid(app, caminho=None, nome: str = "grafo") -> None:
 # ------------------------------------------------ os TIPOS de nó (PRONTO: não precisa mexer)
 # TIPOS_DE_NO: nome do nó -> tipo (usado só para colorir o desenho). Novidade: o tipo JEV (decisão tipada).
 TIPOS_DE_NO = {
-    "receber": "função", "avaliar": "JEV", "encaminhar": "tool", "alertar_dado_sensivel": "função",
+    "receber": "função", "avaliar": "modelo de decisão", "encaminhar": "tool", "alertar_dado_sensivel": "função",
     "pedir_esclarecimento": "função", "pesquisar": "tool", "responder": "LLM",
 }
 # CORES_POR_TIPO: tipo -> cor de preenchimento no Mermaid.
-CORES_POR_TIPO = {"JEV": "#ffd6e7", "LLM": "#cfe3ff", "tool": "#ead7ff", "função": "#ececec"}
+CORES_POR_TIPO = {"modelo de decisão": "#ffd6e7", "LLM": "#cfe3ff", "tool": "#ead7ff", "função": "#ececec"}
 
 
 def mermaid_por_tipo(app) -> str:
@@ -340,7 +340,7 @@ def mermaid_por_tipo(app) -> str:
 def salvar_mermaid_por_tipo(app, nome: str = "grafo_por_tipo") -> None:
     """Imprime o Mermaid colorido por tipo e salva em saida/."""
     mermaid = mermaid_por_tipo(app)
-    print("\nOS TIPOS DE NÓ: JEV (rosa) | LLM (azul) | tool (roxo) | função (cinza)")
+    print("\nOS TIPOS DE NÓ: modelo de decisão (rosa) | LLM (azul) | tool (roxo) | função (cinza)")
     print(mermaid)
     _salvar(nome, mermaid)
 
@@ -376,7 +376,7 @@ def rodar_perguntas(app) -> None:
         certas += ok
         print(f"\n[{i}] {caso['pergunta']}")
         print(f"    observe  : {caso['observe']}")
-        print(f"    JEV      : urgente={estado.get('p_urgente', 0):.2f} sensível={estado.get('p_sensivel', 0):.2f} "
+        print(f"    modelo de decisão: urgente={estado.get('p_urgente', 0):.2f} sensível={estado.get('p_sensivel', 0):.2f} "
               f"assunto={estado.get('assunto')!r} (confiança {estado.get('confianca', 0):.2f})")
         print(f"    caminho  : {' -> '.join(caminho)}")
         print(f"    {'✓' if ok else '✗'} esperado : {' -> '.join(caso['caminho'])}")
@@ -384,8 +384,8 @@ def rodar_perguntas(app) -> None:
 
 
 if __name__ == "__main__":
-    modelo = obter_modelo(ModeloMock(), padrao="openai")  # o LLM que escreve a resposta (real por padrão; sem chave, Mock)
-    jev = obter_jev()  # o JEV que decide (real com JEV_AI_API_KEY; sem a chave, o Mock)
+    modelo = obter_modelo_real(padrao="openai")  # o LLM REAL que escreve a resposta (OpenAI por padrão; Ollama com PROVEDOR=ollama)
+    jev = obter_jev()  # o decisor REAL: JEV (JEV_AI_API_KEY) ou Laya local ($env:JEV = "laya"); sem nenhum dos dois, o programa para
     print(f"LLM em uso: {modelo.nome} | decisões: {jev.nome}\n")
     app = construir_grafo(modelo, jev)  # o grafo compilado, pronto para executar
     rodar_perguntas(app)

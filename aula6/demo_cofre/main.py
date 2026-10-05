@@ -67,6 +67,8 @@ def construir_grafo():
     """
     #colocar a função 1 aqui
     # def receber(estado):
+    def receber(estado):
+        return {"tentativas": 0, "acertou": False, "status": ""}
 
     """
     FUNÇÃO PONTO 2 -- tentar.
@@ -75,6 +77,10 @@ def construir_grafo():
     """
     #colocar a função 2 aqui
     # def tentar(estado):
+    def tentar(estado):
+        i, entradas = estado["tentativas"], estado["entradas"]
+        senha = entradas[i] if i < len(entradas) else ""
+        return {"acertou": senha == SENHA, "tentativas": i + 1}
 
     """
     FUNÇÃO PONTO 3 -- liberar e o roteador.
@@ -83,8 +89,15 @@ def construir_grafo():
     """
     #colocar as funções do ponto 3 aqui
     # def liberar(estado):
+    def liberar(estado):
+        return {"status": "liberado"}
 
     # def rotear_apos_tentar(estado):
+    def rotear_apos_tentar(estado):
+        return "ok" if estado["acertou"] else "erro"
+
+    def rotear_apos_tentar(estado):
+        return "ok" if estado["acertou"] else ("bloqueio" if estado["tentativas"] >= MAX_TENTATIVAS else "erro")
 
     """
     FUNÇÃO PONTO 4 -- o CICLO: não há função nova.
@@ -95,10 +108,12 @@ def construir_grafo():
     """
     FUNÇÃO PONTO 5 -- a PARADA: bloquear, e EDITE rotear_apos_tentar (a do ponto 3):
         bloquear: {"status": "bloqueado"}
-        no roteador: se NÃO acertou e estado["tentativas"] >= MAX_TENTATIVAS -> devolva "bloquear"
     """
     #colocar a função 5 aqui
     # def bloquear(estado):
+    def bloquear(estado):
+        return {"status": "bloqueado"}
+    
 
     # ==============================================================================================
     # FASE B -- LIGAR OS PONTOS
@@ -109,8 +124,8 @@ def construir_grafo():
         dica: construtor.add_node("receber", receber)  e  construtor.add_edge(START, "receber")
     """
     construtor = StateGraph(Estado)
-    # construtor.add_node("receber", receber)
-    # construtor.add_edge(START, "receber")
+    construtor.add_node("receber", receber)
+    construtor.add_edge(START, "receber")
 
     # teste isolado do ponto 1: construtor.add_edge("receber", END)   (apague no ponto 2)
 
@@ -118,8 +133,9 @@ def construir_grafo():
     PONTO 2 -- tentar.  Grafo: START -> receber -> tentar -> END
         dica: add_node("tentar", tentar)  e  add_edge("receber", "tentar")
     """
-    # construtor.add_node("tentar", tentar)
-    # construtor.add_edge("receber", "tentar")
+    construtor.add_node("tentar", tentar)
+    construtor.add_edge("receber", "tentar")
+    
 
     # teste isolado do ponto 2: construtor.add_edge("tentar", END)   (apague no ponto 3)
 
@@ -130,22 +146,22 @@ def construir_grafo():
               add_edge("liberar", END)
         (até o ponto 4 existir, "erro" vai para END)
     """
-    # construtor.add_node("liberar", liberar)
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("liberar", END)
+    construtor.add_node("liberar", liberar)
+    construtor.add_conditional_edges("tentar", rotear_apos_tentar, {"ok": "liberar", "erro": "tentar", "bloqueio": "bloquear"})
 
     """
     PONTO 4 -- o CICLO.  tentar -> (erro) tentar
         dica: no ponto 3, troque  "erro": END  por  "erro": "tentar"   <- um nó que volta para si mesmo
     """
+    # ajustado no código do ponto 3
 
     """
     PONTO 5 -- a PARADA.  tentar -> (bloquear) bloquear -> END
         dica: add_node("bloquear", bloquear); add_edge("bloquear", END)
               acrescente ao mapa do ponto 3:  "bloquear": "bloquear"
     """
-    # construtor.add_node("bloquear", bloquear)
-    # construtor.add_edge("bloquear", END)
+    construtor.add_node("bloquear", bloquear)
+    construtor.add_edge("bloquear", END)
     return construtor.compile()
 
 
