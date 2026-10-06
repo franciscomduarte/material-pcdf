@@ -36,7 +36,8 @@ Ele mostra ✓/✗ por ponto, o que o teste encontrou, o que fazer e o **grafo c
 
 - `python desafio3\conferir.py` e os testes usam **sempre** o `JevMock` e o `ModeloMock`: determinísticos, sem internet e **sem gastar créditos**.
 - `python desafio3\main.py` usa o **JEV real** se houver `JEV_AI_API_KEY` no `.env` (cada pergunta = **1 crédito**) e o **LLM real** (OpenAI por padrão, como nas outras aulas).
-  Sem a chave, avisa e usa os de mentira. `$env:JEV = "mock"` força o `JevMock`.
+  Sem a chave, o programa **para** e diz o que fazer: não há decisor de mentira. A alternativa grátis e local é o **Laya**
+  (`pip install laya` e `$env:JEV = "laya"`).
 
 ## Para testar o grafo: 5 perguntas, 5 caminhos
 
@@ -54,6 +55,6 @@ python desafio3\main.py --perguntas
 
 ## Troubleshooting
 
-- **`AVISO: JEV_AI_API_KEY não está definida`**: normal sem a chave; o programa usa o `JevMock`. Para o real, preencha o `.env`.
+- **`Nenhum decisor real disponível`**: falta a chave do JEV (`JEV_AI_API_KEY` no `.env`) e o Laya não foi escolhido. Preencha o `.env` ou use `$env:JEV = "laya"`.
 - **`JEV respondeu 402`**: acabaram os créditos da conta. **`401`**: chave inválida. **`429`**: muitas chamadas; aguarde.
 - **O esqueleto "passa tudo"**: `$env:DESAFIO_DIR` ficou definida; limpe com `Remove-Item Env:DESAFIO_DIR`.

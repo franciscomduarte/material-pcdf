@@ -94,12 +94,13 @@ Os testes usam o `JevMock`: **não gastam créditos**. Veja o [`README.md`](READ
 
 ## Você terminou quando
 
-- `python desafio3\conferir.py` mostra os **6 pontos ✓**, o grafo e o grafo **colorido pelos tipos de nó** (JEV, LLM, tool, função);
-- `python desafio3\main.py --perguntas` mostra **5 de 5** perguntas no caminho esperado (com o JEV real, gasta **5 créditos**).
+- `python desafio3\conferir.py` mostra os **6 pontos ✓**, o grafo e o grafo **colorido pelos tipos de nó** (modelo de decisão, LLM, tool, função);
+- `python desafio3\main.py --perguntas` mostra o caminho de cada uma das 5 perguntas. Com o **JEV real** (gasta **5 créditos**) o resultado esperado é **5 de 5**.
+  Com o **Laya** local, que não é calibrado para este domínio, o resultado pode ser menor (3 de 5 nas nossas medições): é parte do que você vai investigar.
 
 ## Chave e créditos do JEV
 
-- A chave vai em `JEV_AI_API_KEY` no `.env` (copie o `.env.example`). **Nunca no código, nunca no git.** Sem a chave, o `main.py` **avisa** e usa o `JevMock`.
+- A chave vai em `JEV_AI_API_KEY` no `.env` (copie o `.env.example`). **Nunca no código, nunca no git.** Sem a chave, o `main.py` **para** e diz o que fazer: não há decisor de mentira nos exemplos. Alternativa grátis e local: o **Laya** (`pip install laya` e `$env:JEV = "laya"`).
 - Cada pergunta ao JEV real gasta **1 crédito** (uma chamada, mesmo com 3 perguntas dentro). Rode `--perguntas` poucas vezes.
 - Use só textos **fictícios**: o texto é enviado a um serviço externo.
 

@@ -61,6 +61,9 @@ aula7/desafio2/solucao/
 
 aula7/gabaritos/
 
+# Aula 7: os exemplos são esqueletos para implementar ao vivo; a versão pronta de cada um fica só com o professor
+aula7/exemplos/*/solucao/
+
 # Aula 6: exercicio guiado (solucao do professor e arquivos gerados)
 aula6/exercicio_guiado/solucao/
 aula6/exercicio_guiado/saida/
