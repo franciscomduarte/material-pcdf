@@ -11,7 +11,7 @@ copy exemplos\08_paralelismo\main.py exemplos\08_paralelismo\exercicio.py
 ## Tarefa
 
 1. **Terceiro especialista:** acrescente ao `Estado` o campo `analise_conformidade` e crie o nó
-   `conformidade` (mesmo formato de `juridico`: chama o modelo com `prompts.conformidade(...)` e escreve só o seu campo).
+   `conformidade` (mesmo formato de `juridico`: roda o agente `agentes.conformidade` e escreve só o seu campo).
    Ligue-o em **paralelo** (`investigador -> conformidade`) e inclua-o no fan-in:
    `add_edge(["juridico", "risco", "conformidade"], "consolidar")`.
 2. Rode e compare os tempos (cada nó faz uma chamada **real** ao LLM): com **3** ramos, o paralelo leva ~o tempo

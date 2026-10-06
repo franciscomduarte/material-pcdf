@@ -7,8 +7,8 @@ Na pasta aula7/:
     python -m unittest desafio2.test_desafio2 -v
 
 Os testes conferem o CAMINHO do grafo (a estrutura), não o texto que o LLM escreve. A ordem entre `juridico` e
-`risco` (rodam em paralelo) não é garantida; os testes a ignoram. Um `ModeloEspiao` só registra os prompts
-(ele repassa ao LLM real; não finge respostas).
+`risco` (rodam em paralelo) não é garantida; os testes a ignoram. Um espião só registra as entradas enviadas aos
+agentes (ele repassa ao LLM real; não finge respostas).
 
 Para testar a solução do professor:
     $env:DESAFIO_DIR = "desafio2\\solucao"; python -m unittest desafio2.test_desafio2 -v
@@ -17,7 +17,9 @@ import importlib.util
 import os
 import sys
 import unittest
+import warnings
 from pathlib import Path
+from unittest import mock
 
 RAIZ = Path(__file__).resolve().parents[1]
 PASTA = Path(os.getenv("DESAFIO_DIR", Path(__file__).resolve().parent))
@@ -31,36 +33,33 @@ spec = importlib.util.spec_from_file_location("desafio2_main", PASTA / "main.py"
 desafio = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(desafio)
 
+from agents import Runner  # noqa: E402
 from langgraph.checkpoint.memory import MemorySaver  # noqa: E402
 
 from caso import DENUNCIA_045, DENUNCIA_BAIXO_VALOR  # noqa: E402
-from provedor import Modelo, obter_modelo  # noqa: E402
+from provedor import configurar  # noqa: E402
+
+configurar()  # para com uma mensagem clara se não houver provedor configurado
 
 ALTO = DENUNCIA_045
 BAIXO = DENUNCIA_BAIXO_VALOR
 
 
-class ModeloEspiao(Modelo):
-    """Repassa ao LLM REAL e guarda os prompts enviados."""
-
-    def __init__(self, real: Modelo):
-        self.real = real
-        self.nome = real.nome
-        self.prompts: list[str] = []
-
-    def gerar(self, prompt: str) -> str:
-        self.prompts.append(prompt)
-        return self.real.gerar(prompt)
-
-
-LLM = obter_modelo()  # para com uma mensagem clara se não houver provedor configurado
-
-
 def rodar(texto, decisoes):
-    espiao = ModeloEspiao(LLM)
-    app = desafio.construir_grafo(espiao, MemorySaver())
-    estado, caminho = desafio.executar(app, texto, decisoes)
-    return estado, caminho, espiao
+    """Roda o grafo com o LLM real e devolve (estado, caminho, entradas enviadas aos agentes)."""
+    entradas: list[str] = []
+    original = Runner.run_sync
+
+    def espiao(agente, entrada, *args, **kwargs):
+        entradas.append(str(entrada))
+        return original(agente, entrada, *args, **kwargs)
+
+    # o SDK deixa avisos de ResourceWarning (conexões HTTP) ao fechar o laço de cada chamada: não são erro do grafo
+    with warnings.catch_warnings(), mock.patch.object(Runner, "run_sync", espiao):
+        warnings.simplefilter("ignore", ResourceWarning)
+        app = desafio.construir_grafo(MemorySaver())
+        estado, caminho = desafio.executar(app, texto, decisoes)
+    return estado, caminho, entradas
 
 
 def normalizar(caminho):
@@ -93,12 +92,12 @@ class TestDesafio2(unittest.TestCase):
         self.assertEqual(estado["status"], "aprovada")
 
     def test_caso3_rejeicao_do_gestor_gera_revisao_com_feedback(self):
-        estado, caminho, espiao = rodar(ALTO, ["nao", "sim", "sim"])
+        estado, caminho, entradas = rodar(ALTO, ["nao", "sim", "sim"])
         self.assertEqual(normalizar(caminho),
                          BASE + ["revisar", "consolidar", "aprovacao_gestor", "aprovacao_diretor", "finalizar"])
         self.assertEqual(estado["tentativas"], 2)
-        com_feedback = [p for p in espiao.prompts if desafio.FEEDBACK_PADRAO in p]
-        self.assertTrue(com_feedback, "o prompt da 2ª versão deve conter o feedback do gestor")
+        com_feedback = [e for e in entradas if desafio.FEEDBACK_PADRAO in e]
+        self.assertTrue(com_feedback, "a entrada da 2ª versão deve conter o feedback do gestor")
 
     def test_caso4_diretor_nega(self):
         estado, caminho, _ = rodar(ALTO, ["sim", "nao"])

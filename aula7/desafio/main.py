@@ -11,10 +11,12 @@ from typing import TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from langgraph.graph import END, START, StateGraph
+from agents import Runner  # noqa: F401  (roda os agentes: Runner.run_sync(agente, entrada).final_output)
+from langgraph.graph import END, START, StateGraph  # noqa: F401
 from langgraph.types import Command, interrupt  # noqa: F401
 
-import prompts  # noqa: F401  (os prompts dos especialistas)
+import agentes  # noqa: F401  (os agentes prontos: investigador, classificador, redator, ...)
+import prompts  # noqa: F401  (entradas dos agentes e nivel_de)
 from caso import DENUNCIA_045, DENUNCIA_BAIXO_VALOR
 
 MAX_TENTATIVAS = 3
@@ -32,7 +34,7 @@ class Estado(TypedDict):
     status: str  # "aprovada" | "aprovada_automaticamente" | "limite_de_revisoes"
 
 
-def construir_grafo(modelo, checkpointer):
+def construir_grafo(checkpointer):
     """TODO: monte o grafo (nós, roteadores e arestas) e devolva g.compile(checkpointer=checkpointer).
 
     Nós (nomes exatos, os testes conferem o caminho):
@@ -62,24 +64,18 @@ def construir_grafo(modelo, checkpointer):
     Status final: finalizar -> "aprovada_automaticamente" (veio do risco baixo) ou "aprovada";
                   encerrar  -> "limite_de_revisoes".
 
-    Como chamar o LLM (REAL; os prompts já estão prontos em prompts.py):
-        investigar     -> modelo.gerar(prompts.investigar(estado["solicitacao"]))
-        avaliar_risco  -> texto = modelo.gerar(prompts.classificar_risco(estado["solicitacao"], estado["investigacao"]))
+    Como chamar os agentes (REAIS; já estão prontos em agentes.py, e as entradas em prompts.py):
+        investigar     -> Runner.run_sync(agentes.investigador, estado["solicitacao"]).final_output
+        avaliar_risco  -> entrada = prompts.entrada_classificar(estado["solicitacao"], estado["investigacao"])
+                          texto = Runner.run_sync(agentes.classificador, entrada).final_output
                           nivel_risco = prompts.nivel_de(texto)      # "alto" | "baixo"
-        recomendar     -> modelo.gerar(prompts.recomendar(estado["investigacao"], "", estado["nivel_risco"], estado["feedback_humano"]))
+        recomendar     -> entrada = prompts.entrada_recomendar(estado["investigacao"], "", estado["nivel_risco"],
+                                                               estado["feedback_humano"])
+                          Runner.run_sync(agentes.redator, entrada).final_output
 
     Veja o enunciado em README.md e o exemplo 07 da aula.
     """
-    def receber(estado):
-        return {"solicitacao": estado["solicitacao"].strip(), "urgencia": "", "informacao": "",
-                "encaminhamento": "", "analise": "", "valida": False, "tentativas": 0,
-                "feedback": "", "resposta": ""}
-
-    construtor = StateGraph(Estado)
-    construtor.add_node("receber", receber)
-    construtor.add_edge(START, "receber")
-    construtor.add_edge("receber", END)
-    return construtor.compile()
+    raise NotImplementedError("Implemente construir_grafo()")
 
 
 def executar(app, solicitacao: str, decisoes: list[str] | None = None, thread_id: str = "caso") -> tuple[dict, list[str]]:
@@ -113,10 +109,9 @@ CASOS = [
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from langgraph.checkpoint.memory import MemorySaver
-    from caso import DENUNCIA_045, DENUNCIA_BAIXO_VALOR  # noqa: F401
-    from provedor import obter_modelo
+    from provedor import configurar
 
-    modelo = obter_modelo()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+    print(f"Modelo em uso: {configurar()}\n")  # LLM REAL: PROVEDOR no .env (openai ou ollama)
     for i, (titulo, texto, decisoes) in enumerate(CASOS):
-        estado, caminho = executar(construir_grafo(modelo, MemorySaver()), texto, decisoes, f"caso-{i}")
+        estado, caminho = executar(construir_grafo(MemorySaver()), texto, decisoes, f"caso-{i}")
         print(f"{titulo}\n  caminho: {' -> '.join(caminho)}\n  status={estado['status']} versões={estado['tentativas']}\n")

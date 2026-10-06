@@ -29,5 +29,5 @@ Trabalhe no `exercicio.py`; o `main.py` fica intacto para comparação.
 
 ## Para ir além
 
-Rode com `PROVEDOR=claude` (se tiver chave) e compare: o modelo real separa melhor as partes? Mesmo assim,
+Rode com `PROVEDOR=ollama` (se tiver o Ollama) e compare: o modelo local separa melhor as partes? Mesmo assim,
 você consegue **auditar** cada uma?

@@ -11,10 +11,12 @@ from typing import TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from langgraph.graph import END, START, StateGraph
-from langgraph.types import Command, interrupt
+from agents import Runner  # noqa: F401  (roda os agentes: Runner.run_sync(agente, entrada).final_output)
+from langgraph.graph import END, START, StateGraph  # noqa: F401
+from langgraph.types import Command, interrupt  # noqa: F401
 
-import prompts  # noqa: F401  (os prompts dos especialistas)
+import agentes  # noqa: F401  (os agentes prontos: investigador, juridico, risco, classificador, redator, ...)
+import prompts  # noqa: F401  (entradas dos agentes e nivel_de)
 from caso import DENUNCIA_045, DENUNCIA_BAIXO_VALOR
 
 MAX_TENTATIVAS = 3
@@ -34,7 +36,7 @@ class Estado(TypedDict):
     status: str           # "aprovada" | "limite_de_revisoes" | "negada_pelo_diretor"
 
 
-def construir_grafo(modelo, checkpointer):
+def construir_grafo(checkpointer):
     """TODO: monte o grafo (nós, roteadores e arestas) e devolva g.compile(checkpointer=checkpointer).
 
     Nós (nomes exatos): receber, investigar, juridico, risco, consolidar, aprovacao_gestor, revisar,
@@ -62,13 +64,16 @@ def construir_grafo(modelo, checkpointer):
 
     Status final: "aprovada" | "limite_de_revisoes" | "negada_pelo_diretor".
 
-    Como chamar o LLM (REAL; os prompts já estão prontos em prompts.py):
-        investigar -> modelo.gerar(prompts.investigar(estado["solicitacao"]))
-        juridico   -> modelo.gerar(prompts.juridico(estado["investigacao"]))
-        risco      -> parecer = modelo.gerar(prompts.risco(estado["investigacao"]))          # vai em analise_risco
-                      classe = modelo.gerar(prompts.classificar_risco(estado["solicitacao"], estado["investigacao"]))
+    Como chamar os agentes (REAIS; já estão prontos em agentes.py, e as entradas em prompts.py):
+        investigar -> Runner.run_sync(agentes.investigador, estado["solicitacao"]).final_output
+        juridico   -> Runner.run_sync(agentes.juridico, estado["investigacao"]).final_output
+        risco      -> parecer = Runner.run_sync(agentes.risco, prompts.entrada_risco(estado["investigacao"])).final_output
+                      # vai em analise_risco
+                      entrada = prompts.entrada_classificar(estado["solicitacao"], estado["investigacao"])
+                      classe = Runner.run_sync(agentes.classificador, entrada).final_output
                       nivel_risco = prompts.nivel_de(classe)   # "alto" | "baixo": é ele que DECIDE o caminho
-        consolidar -> modelo.gerar(prompts.recomendar(investigacao, analise_juridica, analise_risco, feedback_humano))
+        consolidar -> entrada = prompts.entrada_recomendar(investigacao, analise_juridica, analise_risco, feedback_humano)
+                      Runner.run_sync(agentes.redator, entrada).final_output
 
     Veja o enunciado em README.md e os exemplos 07 e 08 da aula.
     """
@@ -109,10 +114,9 @@ CASOS = [
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from langgraph.checkpoint.memory import MemorySaver
-    from caso import DENUNCIA_045, DENUNCIA_BAIXO_VALOR  # noqa: F401
-    from provedor import obter_modelo
+    from provedor import configurar
 
-    modelo = obter_modelo()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+    print(f"Modelo em uso: {configurar()}\n")  # LLM REAL: PROVEDOR no .env (openai ou ollama)
     for i, (titulo, texto, decisoes) in enumerate(CASOS):
-        estado, caminho = executar(construir_grafo(modelo, MemorySaver()), texto, decisoes, f"caso-{i}")
+        estado, caminho = executar(construir_grafo(MemorySaver()), texto, decisoes, f"caso-{i}")
         print(f"{titulo}\n  caminho: {' -> '.join(caminho)}\n  status={estado['status']} versões={estado['tentativas']}\n")

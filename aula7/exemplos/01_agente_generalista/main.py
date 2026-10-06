@@ -1,16 +1,25 @@
 """
+ESQUELETO PARA IMPLEMENTAR AO VIVO (aula 7).
+Implemente as etapas na ordem. Cada uma está marcada com um comentário e um
+raise NotImplementedError: troque esse raise pelo código da etapa.
+  ETAPA 1 -- Mostrar a resposta e a pergunta que importa
+  ETAPA 2 -- O agente generalista: um Agent só
+O texto abaixo descreve o exemplo pronto.
+
 Exemplo 01 -- O AGENTE GENERALISTA.
 
 Cenário da aula inteira: chega uma denúncia sobre uma contratação pública e o
 sistema precisa produzir uma avaliação. Começamos como todo mundo começa: UM
-agente, UM prompt, que faz tudo.
+agente, UMA instrução, que faz tudo.
 
     receber -> investigar -> interpretar (jurídico) -> avaliar risco -> recomendar
                  \_______________ tudo dentro de UM agente ______________/
 
+O agente é o mesmo das Aulas 1 a 4:  Agent(name=..., instructions=...)  e roda com Runner.run_sync().
+
 Rode e observe: funciona. O problema não está no resultado, está na ARQUITETURA:
 
-  - um prompt gigante mistura quatro responsabilidades muito diferentes;
+  - uma instrução gigante mistura quatro responsabilidades muito diferentes;
   - não dá para ver (nem auditar) onde a investigação termina e o direito começa;
   - não dá para trocar, melhorar ou testar UMA das partes sem mexer nas outras;
   - não há onde inserir um humano: o agente entrega tudo ou nada.
@@ -31,25 +40,27 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from agents import Agent, Runner
+
 import prompts
 from caso import DENUNCIA_045
-from provedor import obter_modelo
+from provedor import configurar
 
-modelo = obter_modelo()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+MODELO = configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
 
 SOLICITACAO = DENUNCIA_045  # os FATOS vêm na denúncia (veja caso.py): o LLM não pode inventá-los
 
 
 def agente_generalista(solicitacao: str) -> str:
-    """UM agente, UM prompt: investiga, interpreta, avalia risco e recomenda."""
-    print("[AGENTE GENERALISTA] eu faço tudo...")
-    return modelo.gerar(prompts.tudo(solicitacao))  # UM prompt com as quatro responsabilidades
+    """UM agente, UMA instrução: investiga, interpreta, avalia risco e recomenda."""
+    # ETAPA 2 -- escreva o corpo de agente_generalista:
+    #   imprima "[AGENTE GENERALISTA] eu faço tudo...", crie o Agent(name="Generalista", instructions=prompts.INSTR_TUDO)
+    #   e devolva Runner.run_sync(generalista, solicitacao).final_output
+    raise NotImplementedError("ETAPA 2: corpo de agente_generalista")
 
 
 if __name__ == "__main__":
-    print(f"Modelo em uso: {modelo.nome}\n")
-    print("Solicitação:", SOLICITACAO, "\n")
-    resposta = agente_generalista(SOLICITACAO)
-    print("\nResposta única:")
-    print(resposta)
-    print("\nOnde termina a investigação? Quem fez a análise jurídica? Não dá para saber.")
+    # ETAPA 1 -- bloco principal:
+    #   imprima o modelo em uso, a solicitação e a resposta de agente_generalista(SOLICITACAO)
+    #   termine com: "Onde termina a investigação? Quem fez a análise jurídica? Não dá para saber."
+    raise NotImplementedError("ETAPA 1: bloco principal")

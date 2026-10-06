@@ -11,7 +11,7 @@ copy exemplos\03_estado_compartilhado\main.py exemplos\03_estado_compartilhado\e
 ## Tarefa
 
 1. Acrescente ao `Estado` o campo `parecer_comunicacao: str`.
-2. Crie o especialista **Comunicação** (`prompts.comunicar`): ele **lê** `recomendacao` e
+2. Crie o especialista **Comunicação** (rode `agentes.comunicacao` com `Runner.run_sync`): ele **lê** `recomendacao` e
    **escreve só** `parecer_comunicacao`. Registre a leitura no mesmo log `lê: ...` dos outros.
 3. Encaixe-o depois do Analista e imprima o estado final.
 4. Rode **duas denúncias seguidas** (como o exemplo já faz) e confira: o **estado** recomeça vazio

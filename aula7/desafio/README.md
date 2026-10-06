@@ -22,19 +22,19 @@ START → receber → investigar → avaliar_risco (LLM) ─┬─ baixo → fin
 - `Estado` (o `TypedDict`), `MAX_TENTATIVAS = 3` e `FEEDBACK_PADRAO`;
 - `executar(app, solicitacao, decisoes)`: roda o grafo, responde cada pausa com a próxima decisão
   (`"sim"`/`"nao"`) e devolve `(estado_final, caminho_percorrido)`;
-- `prompts.py` (na pasta acima): os prompts dos especialistas; `caso.py`: as denúncias (`DENUNCIA_045`, de alto risco, e `DENUNCIA_BAIXO_VALOR`). O LLM é **REAL** (`PROVEDOR` no `.env`).
+- `agentes.py` (na pasta acima): os agentes prontos (`Agent`), `prompts.py`: as instruções e as entradas deles; `caso.py`: as denúncias (`DENUNCIA_045`, de alto risco, e `DENUNCIA_BAIXO_VALOR`). O LLM é **REAL** (`PROVEDOR` no `.env`).
 
 ## O que você escreve
 
-Tudo em `construir_grafo(modelo, checkpointer)`. Use **exatamente** estes nomes de nó
+Tudo em `construir_grafo(checkpointer)`. Use **exatamente** estes nomes de nó
 (os testes conferem o caminho):
 
 | Nó | Tipo | Escreve |
 |---|---|---|
 | `receber` | função | inicializa **todos** os campos |
-| `investigar` | LLM (`prompts.investigar`) | `investigacao` |
-| `avaliar_risco` | LLM (`prompts.classificar_risco` + `prompts.nivel_de`) | `nivel_risco` (`"alto"`/`"baixo"`) |
-| `recomendar` | LLM (`prompts.recomendar`, que já recebe o feedback do humano) | `recomendacao`, `tentativas` |
+| `investigar` | agente `agentes.investigador` | `investigacao` |
+| `avaliar_risco` | agente `agentes.classificador` (entrada `prompts.entrada_classificar`) + `prompts.nivel_de` | `nivel_risco` (`"alto"`/`"baixo"`) |
+| `recomendar` | agente `agentes.redator` (entrada `prompts.entrada_recomendar`, que já recebe o feedback do humano) | `recomendacao`, `tentativas` |
 | `validacao_humana` | `interrupt()` | `aprovado`, `feedback_humano` |
 | `revisar` | função | (nada; só marca a volta) |
 | `finalizar` | função | `status` |

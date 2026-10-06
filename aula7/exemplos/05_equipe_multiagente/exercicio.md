@@ -11,7 +11,7 @@ copy exemplos\05_equipe_multiagente\main.py exemplos\05_equipe_multiagente\exerc
 ## Tarefa
 
 1. Acrescente ao `Estado` o campo `parecer_comunicacao`.
-2. Crie o nó `comunicacao` (`prompts.comunicar`): lê `recomendacao`, escreve `parecer_comunicacao`.
+2. Crie o nó `comunicacao` (roda `agentes.comunicacao`): lê `recomendacao`, escreve `parecer_comunicacao`.
 3. Ligue `analista -> comunicacao -> END` (remova a aresta `analista -> END`).
 4. Atualize a mensagem do `orquestrador` para refletir o novo plano.
 5. Rode e compare o **caminho** impresso com o do exemplo original.

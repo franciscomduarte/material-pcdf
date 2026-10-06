@@ -10,13 +10,15 @@ copy exemplos\02_agentes_especializados\main.py exemplos\02_agentes_especializad
 
 ## Tarefa
 
-O arquivo `prompts.py` já traz o prompt `prompts.comunicar(texto)` (um parecer sobre a **clareza** do texto final).
+O arquivo `prompts.py` já traz as instruções `prompts.INSTR_COMUNICACAO` (um parecer sobre a **clareza** do texto final)
+e `prompts.INSTR_REDATOR` (a recomendação), além de `prompts.entrada_recomendar(...)`, que monta a entrada do redator.
 
-1. Crie a função `comunicacao(recomendacao: str) -> str` que chama `modelo.gerar(prompts.comunicar(recomendacao))` e
-   imprime `[COMUNICAÇÃO] ...` como os outros especialistas.
-2. Gere a recomendação com `modelo.gerar(prompts.recomendar(fatos, enquadramento, risco))` e chame a Comunicação
+1. Crie o agente `comunicacao = Agent(name="Comunicacao", instructions=prompts.INSTR_COMUNICACAO)` e rode-o com a
+   função `executar`, que imprime `[COMUNICACAO]` como os outros especialistas.
+2. Crie o agente `redator` (`prompts.INSTR_REDATOR`), gere a recomendação com
+   `executar(redator, prompts.entrada_recomendar(fatos, enquadramento, risco))` e chame a Comunicação
    **depois** do Analista, passando a recomendação. Imprima o resultado.
-3. Escreva, num comentário acima da função, a responsabilidade dela **em uma frase** e o que ela
+3. Escreva, num comentário acima do agente, a responsabilidade dele **em uma frase** e o que ele
    **não** faz (ex.: não muda o conteúdo jurídico).
 
 ## Como saber que deu certo

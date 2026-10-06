@@ -25,19 +25,19 @@ START → receber → investigar ─┬─→ juridico ─┐
 - `Estado`, `MAX_TENTATIVAS = 3`, `FEEDBACK_PADRAO`;
 - `executar(app, solicitacao, decisoes)`: roda o grafo e responde **cada pausa, na ordem**, com a
   próxima decisão (`"sim"`/`"nao"`); devolve `(estado_final, caminho)`;
-- `prompts.py` (na pasta acima): os prompts dos especialistas; `caso.py`: as denúncias (`DENUNCIA_045`, de alto risco, e `DENUNCIA_BAIXO_VALOR`). O LLM é **REAL** (`PROVEDOR` no `.env`).
+- `agentes.py` (na pasta acima): os agentes prontos (`Agent`), `prompts.py`: as instruções e as entradas deles; `caso.py`: as denúncias (`DENUNCIA_045`, de alto risco, e `DENUNCIA_BAIXO_VALOR`). O LLM é **REAL** (`PROVEDOR` no `.env`).
 
 ## O que você escreve
 
-Tudo em `construir_grafo(modelo, checkpointer)`, com **estes nomes de nó**:
+Tudo em `construir_grafo(checkpointer)`, com **estes nomes de nó**:
 
 | Nó | Tipo | Escreve |
 |---|---|---|
 | `receber` | função | inicializa **todos** os campos |
-| `investigar` | LLM (`prompts.investigar`) | `investigacao` |
-| `juridico` | LLM (`prompts.juridico`) | `analise_juridica` |
-| `risco` | LLM em **duas chamadas**: `prompts.risco` (o parecer) e `prompts.classificar_risco` + `prompts.nivel_de` (o nível que decide o caminho) | `analise_risco`, `nivel_risco` (`"alto"`/`"baixo"`) |
-| `consolidar` | LLM (`prompts.recomendar`, que já recebe o feedback do humano) | `parecer`, `tentativas` |
+| `investigar` | agente `agentes.investigador` | `investigacao` |
+| `juridico` | agente `agentes.juridico` | `analise_juridica` |
+| `risco` | **dois** agentes: `agentes.risco` (o parecer) e `agentes.classificador` + `prompts.nivel_de` (o nível que decide o caminho) | `analise_risco`, `nivel_risco` (`"alto"`/`"baixo"`) |
+| `consolidar` | agente `agentes.redator` (entrada `prompts.entrada_recomendar`, que já recebe o feedback do humano) | `parecer`, `tentativas` |
 | `aprovacao_gestor` | `interrupt()` | `aprovado`, `feedback_humano` |
 | `revisar` | função | (nada) |
 | `aprovacao_diretor` | `interrupt()` | `aprovado` |

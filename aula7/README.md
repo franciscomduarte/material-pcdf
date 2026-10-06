@@ -47,6 +47,17 @@ pip install -r requirements.txt
 python -c "import langgraph; print('langgraph OK')"
 ```
 
+## Como funciona a aula: esqueletos para implementar
+
+Cada exemplo (`exemplos/NN_.../main.py`) é um **esqueleto**: o professor e a turma o implementam juntos,
+**etapa por etapa**. Cada etapa está marcada com `# ETAPA n` e um `raise NotImplementedError("ETAPA n: ...")`:
+troque o `raise` pelo código da etapa e rode o arquivo. Os comentários da etapa dizem o que escrever.
+
+- Rodar o esqueleto **antes** de terminar uma etapa mostra `NotImplementedError: ETAPA n`: é esperado, e diz onde você está.
+- No começo do arquivo há a lista das etapas, na ordem.
+- Quando todas as etapas estiverem escritas, o exemplo roda inteiro, como descrito abaixo.
+- O `exercicio.md` de cada pasta continua valendo: use o **seu** `main.py` já implementado como ponto de partida.
+
 ## Execução
 
 Rode **sempre a partir da pasta `aula7/`**:
@@ -84,21 +95,31 @@ desafio2                  Você implementa: especialistas em paralelo + aprovaç
 Cada pasta de exemplo tem um **`exercicio.md`** para você fazer sozinho: copie o `main.py` para
 `exercicio.py` e resolva lá, sem mexer no original.
 
-### Comandos úteis de cada exemplo
+### Comandos para rodar cada exemplo
+
+Sempre a partir da pasta `aula7/`.
 
 | Exemplo | Comando | O que mostra |
 |---|---|---|
+| 01 | `python exemplos\01_agente_generalista\main.py` | um agente faz tudo, sem separar responsabilidades |
+| 02 | `python exemplos\02_agentes_especializados\main.py` | Investigador, Jurídico e Analista, um de cada vez |
+| 03 | `python exemplos\03_estado_compartilhado\main.py` | `TypedDict` compartilhado; estado x memória |
 | 04 | `python exemplos\04_persistencia\main.py` | roda até o breakpoint e **encerra** o processo |
-| 04 | `... --retomar` | **outro** processo lê o checkpoint e continua |
-| 04 | `... --historico` | lista os checkpoints da execução |
+| 04 | `python exemplos\04_persistencia\main.py --retomar` | **outro** processo lê o checkpoint e continua |
+| 04 | `python exemplos\04_persistencia\main.py --historico` | lista os checkpoints da execução |
+| 04 | `python exemplos\04_persistencia\main.py --auto` | tudo no mesmo processo (demonstração rápida) |
+| 05 | `python exemplos\05_equipe_multiagente\main.py` | equipe como grafo, com orquestrador (log `[nó]`) |
 | 06 | `python exemplos\06_human_in_the_loop\main.py --simples` | a versão ingênua, com `input()` |
 | 06 | `python exemplos\06_human_in_the_loop\main.py` | pausa com `interrupt()` e encerra |
-| 06 | `... --retomar sim` | outro processo retoma com a decisão |
+| 06 | `python exemplos\06_human_in_the_loop\main.py --retomar sim` | outro processo retoma com a decisão |
+| 06 | `python exemplos\06_human_in_the_loop\main.py --auto sim` | pausa e retoma no mesmo processo |
 | 07 | `python exemplos\07_aprovacao_revisao\main.py` | interativo: **você** é o humano |
-| 07 | `... --auto nao,sim` | rejeita 1x, depois aprova |
-| 07 | `... --auto nao,nao,nao` | rejeita até o limite de 3 versões |
-| 07 | `... --falha-tecnica` e depois `... --retomar --auto sim` | erro técnico: retoma sem contar tentativa |
-| 08 | `python exemplos8_paralelismo\main.py` | mesmo trabalho em fila (~2 s) e em paralelo (~1 s) |
+| 07 | `python exemplos\07_aprovacao_revisao\main.py --auto sim` | aprova de primeira |
+| 07 | `python exemplos\07_aprovacao_revisao\main.py --auto nao,sim` | rejeita 1x, depois aprova |
+| 07 | `python exemplos\07_aprovacao_revisao\main.py --auto nao,nao,nao` | rejeita até o limite de 3 versões |
+| 07 | `python exemplos\07_aprovacao_revisao\main.py --falha-tecnica` | simula erro técnico e para |
+| 07 | `python exemplos\07_aprovacao_revisao\main.py --retomar --auto sim` | retoma depois do erro técnico, sem contar tentativa |
+| 08 | `python exemplos\08_paralelismo\main.py` | mesmo trabalho em fila (~2 s) e em paralelo (~1 s) |
 
 Estrutura de diretórios:
 
@@ -106,9 +127,10 @@ Estrutura de diretórios:
 aula7/
 ├── README.md            # este arquivo
 ├── aula-07.md           # material teórico
-├── provedor.py          # escolhe o LLM (PROVEDOR no .env)
+├── provedor.py          # configura o SDK de agentes para o provedor (PROVEDOR no .env)
+├── agentes.py           # os agentes prontos (Agent), usados a partir do exemplo 03
 ├── caso.py              # as denúncias (dados fictícios, com os fatos no texto)
-├── prompts.py           # os prompts dos especialistas (prontos)
+├── prompts.py           # as instruções dos agentes e a montagem das entradas (prontas)
 ├── .env.example
 ├── requirements.txt
 ├── exemplos/            # 01..08, cada um com exercicio.md
@@ -131,16 +153,31 @@ aula7/
 > **Atenção:** ao retomar, o nó que chamou `interrupt()` roda **de novo desde o início**.
 > Por isso nada com efeito colateral (enviar e-mail, gravar, cobrar) vem antes do `interrupt()`.
 
+## Agentes: `Agent` + `Runner`
+
+Os agentes são os mesmos das Aulas 1 a 4: `Agent(name=..., instructions=...)`, executados por `Runner.run_sync(agente, entrada)`.
+O texto que o agente respondeu está em `.final_output`.
+
+```python
+from agents import Agent, Runner
+
+investigador = Agent(name="Investigador", instructions="Liste apenas os fatos verificáveis.")
+fatos = Runner.run_sync(investigador, denuncia).final_output
+```
+
+- **Exemplos 01 e 02:** você escreve os agentes à mão.
+- **Exemplo 03 em diante:** os agentes já vêm prontos em [`agentes.py`](agentes.py) (as instruções estão em [`prompts.py`](prompts.py)) e o foco passa a ser o **estado** e o **grafo**: cada nó do LangGraph roda um agente.
+- O grafo roda os nós em threads e cada `Runner.run_sync()` cria o seu laço de eventos; por isso o `provedor.py` configura o cliente sem conexões persistentes.
+
 ## Provedores de LLM (todos REAIS)
 
 Mesmo padrão das Aulas 4 e 5: a variável `PROVEDOR` (no `.env` ou no ambiente) escolhe o modelo em
-[`provedor.py`](provedor.py). **O grafo não muda**, só o provedor. **Não há Mock nesta aula.**
+[`provedor.py`](provedor.py), que configura o SDK de agentes (`Agent` + `Runner`). **Os agentes e o grafo não mudam**, só o provedor. **Não há Mock nesta aula.**
 
 | `PROVEDOR` | O que é | Precisa de |
 |---|---|---|
 | `openai` (padrão) | OpenAI (`gpt-4o-mini`) | `OPENAI_API_KEY` |
 | `ollama` | modelo local, grátis | `ollama serve` no ar + modelo baixado (`OLLAMA_MODEL`) |
-| `claude` | Anthropic (opcional) | `ANTHROPIC_API_KEY` |
 
 Configuração: `copy .env.example .env` e preencha só o que for usar. O `.env` está no `.gitignore`:
 **nunca coloque chaves no código nem faça commit delas.** Sem a chave (ou sem o Ollama no ar) o programa **para** e diz o que fazer.

@@ -14,7 +14,7 @@ errou, nem testar uma etapa isoladamente.
 
 **O que muda com especialistas?**
 Cada agente faz **uma** coisa (Investigador → fatos; Jurídico → enquadramento; Analista → risco e
-recomendação), com um prompt curto e focado. Ganhos: saídas auditáveis por etapa, ferramentas
+recomendação), com instruções curtas e focadas: um `Agent(name=..., instructions=...)` por especialista. Ganhos: saídas auditáveis por etapa, ferramentas
 diferentes por especialista (MCP da Aula 5), e troca de um especialista sem mexer nos outros.
 
 **Então sempre é melhor dividir?**

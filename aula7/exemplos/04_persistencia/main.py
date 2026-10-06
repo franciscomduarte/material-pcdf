@@ -1,4 +1,14 @@
 """
+ESQUELETO PARA IMPLEMENTAR AO VIVO (aula 7).
+Implemente as etapas na ordem. Cada uma está marcada com um comentário e um
+raise NotImplementedError: troque esse raise pelo código da etapa.
+  ETAPA 1 -- O grafo com checkpointer e breakpoint
+  ETAPA 2 -- Iniciar: rodar até o breakpoint
+  ETAPA 3 -- Ler o estado salvo
+  ETAPA 4 -- Retomar em outro processo
+  ETAPA 5 -- O histórico de checkpoints
+O texto abaixo descreve o exemplo pronto.
+
 Exemplo 04 -- PERSISTÊNCIA: checkpoint e recuperação (agora com LangGraph).
 
 No exemplo 03 o estado vivia numa variável: se o processo morresse, tudo se perdia.
@@ -22,6 +32,7 @@ Como o estado está no arquivo .db, dá para retomar em OUTRO processo:
     python exemplos\\04_persistencia\\main.py --auto        # tudo no mesmo processo (demonstração rápida)
 
 O foco NÃO é banco de dados: é  estado -> checkpoint -> persistência -> retomada.
+Os nós rodam os agentes de agentes.py (Agent + Runner), como no exemplo 03.
 """
 import sys
 from pathlib import Path
@@ -29,14 +40,16 @@ from typing import TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from agents import Runner
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
+import agentes
 import prompts
 from caso import DENUNCIA_045
-from provedor import obter_modelo
+from provedor import configurar
 
-modelo = obter_modelo()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+MODELO = configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
 
 DB = Path(__file__).resolve().parent / "checkpoints.db"
 THREAD_ID = "denuncia-045"
@@ -53,67 +66,54 @@ class Estado(TypedDict):
 
 def investigador(estado: Estado) -> dict:
     print("[INVESTIGADOR]")
-    return {"investigacao": modelo.gerar(prompts.investigar(estado["solicitacao"]))}
+    return {"investigacao": Runner.run_sync(agentes.investigador, estado["solicitacao"]).final_output}
 
 
 def juridico(estado: Estado) -> dict:
     print("[JURÍDICO]")
-    return {"analise_juridica": modelo.gerar(prompts.juridico(estado["investigacao"]))}
+    return {"analise_juridica": Runner.run_sync(agentes.juridico, estado["investigacao"]).final_output}
 
 
 def analista(estado: Estado) -> dict:
     print("[ANALISTA]")
     fatos, enquadramento = estado["investigacao"], estado["analise_juridica"]
-    risco = modelo.gerar(prompts.risco(fatos, enquadramento))
-    return {"analise_risco": risco, "recomendacao": modelo.gerar(prompts.recomendar(fatos, enquadramento, risco))}
+    risco = Runner.run_sync(agentes.risco, prompts.entrada_risco(fatos, enquadramento)).final_output
+    recomendacao = Runner.run_sync(agentes.redator, prompts.entrada_recomendar(fatos, enquadramento, risco)).final_output
+    return {"analise_risco": risco, "recomendacao": recomendacao}
 
 
 def construir(checkpointer):
-    construtor = StateGraph(Estado)
-    construtor.add_node("investigador", investigador)
-    construtor.add_node("juridico", juridico)
-    construtor.add_node("analista", analista)
-    construtor.add_edge(START, "investigador")
-    construtor.add_edge("investigador", "juridico")
-    construtor.add_edge("juridico", "analista")
-    construtor.add_edge("analista", END)
-    # checkpointer = onde salvar; interrupt_before = onde parar (breakpoint)
-    return construtor.compile(checkpointer=checkpointer, interrupt_before=["analista"])
+    # ETAPA 1 -- em construir(checkpointer): monte o StateGraph com os três nós (investigador, juridico, analista) e as arestas START -> ... -> END
+    #   compile(checkpointer=checkpointer, interrupt_before=["analista"])
+    raise NotImplementedError("ETAPA 1: construir")
 
 
 def mostrar_estado(app, titulo: str) -> None:
-    foto = app.get_state(CONFIG)
-    print(f"\n{titulo}")
-    print(f"  próximo nó a executar: {foto.next or '(nenhum: execução concluída)'}")
-    for campo, valor in foto.values.items():
-        print(f"  {campo:17}: {valor or '-'}")
+    # ETAPA 3 -- em mostrar_estado: foto = app.get_state(CONFIG)
+    #   imprima o título, foto.next e cada campo de foto.values (use "-" quando vazio)
+    raise NotImplementedError("ETAPA 3: mostrar_estado")
 
 
 def iniciar(app) -> None:
-    print(f"== 1) EXECUÇÃO NOVA (thread_id={THREAD_ID}) ==")
-    app.invoke({"solicitacao": DENUNCIA_045,
-                "investigacao": "", "analise_juridica": "", "analise_risco": "", "recomendacao": ""}, CONFIG)
-    mostrar_estado(app, "Execução INTERROMPIDA pelo breakpoint. Estado salvo em checkpoints.db:")
+    # ETAPA 2 -- em iniciar: imprima o cabeçalho com o THREAD_ID
+    #   app.invoke(estado inicial com os campos vazios, CONFIG) e depois mostrar_estado
+    raise NotImplementedError("ETAPA 2: iniciar")
 
 
 def retomar(app) -> None:
-    foto = app.get_state(CONFIG)
-    if not foto.next:
-        raise SystemExit("Nada a retomar: rode primeiro `python main.py` (sem argumentos).")
-    print(f"== 2) RETOMADA (thread_id={THREAD_ID}) a partir do checkpoint ==")
-    app.invoke(None, CONFIG)  # None = "não há entrada nova: continue de onde parou"
-    mostrar_estado(app, "Execução CONCLUÍDA:")
+    # ETAPA 4 -- em retomar: leia o estado; se não houver foto.next, encerre com "Nada a retomar..."
+    #   caso contrário, app.invoke(None, CONFIG) e mostrar_estado
+    raise NotImplementedError("ETAPA 4: retomar")
 
 
 def historico(app) -> None:
-    print(f"== Checkpoints da execução {THREAD_ID} (do mais recente ao mais antigo) ==")
-    for foto in app.get_state_history(CONFIG):
-        preenchidos = [c for c, v in foto.values.items() if v]
-        print(f"  passo {foto.metadata.get('step'):>2} | próximo: {str(foto.next):18} | campos preenchidos: {preenchidos}")
+    # ETAPA 5 -- em historico: percorra app.get_state_history(CONFIG)
+    #   para cada foto, imprima o passo, o próximo nó e os campos preenchidos
+    raise NotImplementedError("ETAPA 5: historico")
 
 
 if __name__ == "__main__":
-    print(f"Modelo em uso: {modelo.nome}\n")
+    print(f"Modelo em uso: {MODELO}\n")
     argumentos = sys.argv[1:]
     if not argumentos or "--auto" in argumentos:
         DB.unlink(missing_ok=True)  # demonstração limpa: recomeça o banco

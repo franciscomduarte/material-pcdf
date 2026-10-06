@@ -1,4 +1,14 @@
 """
+ESQUELETO PARA IMPLEMENTAR AO VIVO (aula 7).
+Implemente as etapas na ordem. Cada uma está marcada com um comentário e um
+raise NotImplementedError: troque esse raise pelo código da etapa.
+  ETAPA 1 -- O grafo com o ciclo de revisão
+  ETAPA 2 -- Conduzir as pausas até terminar
+  ETAPA 3 -- O analista lê o feedback e conta a tentativa
+  ETAPA 4 -- validacao_humana devolve decisão e feedback
+  ETAPA 5 -- O roteador e a condição de parada
+O texto abaixo descreve o exemplo pronto.
+
 Exemplo 07 -- APROVAÇÃO E REVISÃO: o exemplo que consolida a aula.
 
 No exemplo 06 o humano só aprovava ou rejeitava, e rejeitar encerrava tudo.
@@ -51,15 +61,17 @@ from typing import TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from agents import Runner
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
+import agentes
 import prompts
 from caso import DENUNCIA_045
-from provedor import obter_modelo
+from provedor import configurar
 
-modelo = obter_modelo()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+MODELO = configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
 
 MAX_TENTATIVAS = 3
 DB = Path(__file__).resolve().parent / "checkpoints.db"
@@ -90,7 +102,7 @@ def orquestrador(estado: Estado) -> dict:
 
 def investigador(estado: Estado) -> dict:
     print("[INVESTIGADOR]")
-    return {"investigacao": modelo.gerar(prompts.investigar(estado["solicitacao"]))}
+    return {"investigacao": Runner.run_sync(agentes.investigador, estado["solicitacao"]).final_output}
 
 
 def juridico(estado: Estado) -> dict:
@@ -98,17 +110,14 @@ def juridico(estado: Estado) -> dict:
         print("[JURÍDICO]     ERRO TÉCNICO: serviço de base normativa indisponível")
         raise ConnectionError("serviço de base normativa indisponível")
     print("[JURÍDICO]")
-    return {"analise_juridica": modelo.gerar(prompts.juridico(estado["investigacao"]))}
+    return {"analise_juridica": Runner.run_sync(agentes.juridico, estado["investigacao"]).final_output}
 
 
 def analista(estado: Estado) -> dict:
-    tentativa = estado["tentativas"] + 1
-    print(f"[ANALISTA]     tentativa {tentativa}")
-    fatos, enquadramento = estado["investigacao"], estado["analise_juridica"]
-    risco = modelo.gerar(prompts.risco(fatos, enquadramento))
-    # com feedback do revisor, o prompt pede a versão COMPLETA (ações numeradas, responsável e prazo)
-    recomendacao = modelo.gerar(prompts.recomendar(fatos, enquadramento, risco, estado["feedback_humano"]))
-    return {"analise_risco": risco, "recomendacao": recomendacao, "tentativas": tentativa}
+    # ETAPA 3 -- em analista: tentativa = estado["tentativas"] + 1 e imprima o log
+    #   gere o risco (agentes.risco) e a recomendação (agentes.redator; prompts.entrada_recomendar recebe estado["feedback_humano"])
+    #   devolva analise_risco, recomendacao e tentativas
+    raise NotImplementedError("ETAPA 3: analista")
 
 
 def resumo_para_humano(estado: Estado) -> str:
@@ -123,10 +132,9 @@ def resumo_para_humano(estado: Estado) -> str:
 
 
 def validacao_humana(estado: Estado) -> dict:
-    print("[HUMANO]       aguardando validação...")
-    # Este nó roda de novo na retomada; por isso só decide, sem efeito colateral antes do interrupt().
-    resposta = interrupt({"resumo": resumo_para_humano(estado), "pergunta": "Aprovar análise? [sim/não]"})
-    return {"aprovado": resposta["aprovado"], "feedback_humano": resposta.get("feedback", "")}
+    # ETAPA 4 -- em validacao_humana: imprima o log e chame interrupt({"resumo": ..., "pergunta": ...})
+    #   devolva aprovado e feedback_humano (resposta["aprovado"], resposta.get("feedback", ""))
+    raise NotImplementedError("ETAPA 4: validacao_humana")
 
 
 def revisar(estado: Estado) -> dict:
@@ -145,34 +153,16 @@ def encerrar_sem_aprovacao(estado: Estado) -> dict:
 
 
 def rotear_apos_humano(estado: Estado) -> str:
-    if estado["aprovado"]:
-        return "aprovada"
-    if estado["tentativas"] >= MAX_TENTATIVAS:  # CONDIÇÃO DE PARADA, lida do estado
-        return "desistir"
-    return "revisar"
+    # ETAPA 5 -- em rotear_apos_humano:
+    #   aprovado -> "aprovada"; tentativas >= MAX_TENTATIVAS -> "desistir"; senão -> "revisar"
+    raise NotImplementedError("ETAPA 5: rotear_apos_humano")
 
 
 def construir(checkpointer):
-    construtor = StateGraph(Estado)
-    for nome, funcao in [
-        ("orquestrador", orquestrador), ("investigador", investigador), ("juridico", juridico),
-        ("analista", analista), ("validacao_humana", validacao_humana), ("revisar", revisar),
-        ("finalizar", finalizar), ("encerrar_sem_aprovacao", encerrar_sem_aprovacao),
-    ]:
-        construtor.add_node(nome, funcao)
-    construtor.add_edge(START, "orquestrador")
-    construtor.add_edge("orquestrador", "investigador")
-    construtor.add_edge("investigador", "juridico")
-    construtor.add_edge("juridico", "analista")
-    construtor.add_edge("analista", "validacao_humana")
-    construtor.add_conditional_edges(
-        "validacao_humana", rotear_apos_humano,
-        {"aprovada": "finalizar", "revisar": "revisar", "desistir": "encerrar_sem_aprovacao"},
-    )
-    construtor.add_edge("revisar", "analista")  # o ciclo
-    construtor.add_edge("finalizar", END)
-    construtor.add_edge("encerrar_sem_aprovacao", END)
-    return construtor.compile(checkpointer=checkpointer)
+    # ETAPA 1 -- em construir: 8 nós; arestas START -> orquestrador -> investigador -> juridico -> analista -> validacao_humana
+    #   add_conditional_edges com {"aprovada": "finalizar", "revisar": "revisar", "desistir": "encerrar_sem_aprovacao"}
+    #   add_edge("revisar", "analista") (o ciclo); finalizar e encerrar_sem_aprovacao -> END; compile(checkpointer=checkpointer)
+    raise NotImplementedError("ETAPA 1: construir")
 
 
 def humano_interativo(pausa: dict) -> dict:
@@ -186,22 +176,14 @@ def conduzir(app, entrada, decisoes: list[str] | None = None) -> dict:
     """Roda o grafo; a cada pausa pede a decisão do humano e retoma, até terminar.
     `entrada` é o estado inicial (execução nova) ou None (retomar um checkpoint).
     `decisoes` (opcional) substitui o input(): ex. ["nao", "sim"]."""
-    resultado = app.invoke(entrada, CONFIG)
-    while "__interrupt__" in resultado:
-        pausa = resultado["__interrupt__"][0].value
-        if decisoes is None:
-            resposta = humano_interativo(pausa)
-        else:
-            aprovado = (decisoes.pop(0) if decisoes else "nao") == "sim"
-            print("\n" + pausa["resumo"])
-            print(f"(humano simulado) aprovado = {aprovado}")
-            resposta = {"aprovado": aprovado, "feedback": "" if aprovado else FEEDBACK_PADRAO}
-        resultado = app.invoke(Command(resume=resposta), CONFIG)  # retomada a partir do checkpoint
-    return resultado
+    # ETAPA 2 -- em conduzir: resultado = app.invoke(entrada, CONFIG)
+    #   enquanto "__interrupt__" estiver no resultado: leia a pausa; obtenha a resposta (humano_interativo ou a próxima de decisoes)
+    #   retome com app.invoke(Command(resume=resposta), CONFIG); devolva o resultado
+    raise NotImplementedError("ETAPA 2: conduzir")
 
 
 if __name__ == "__main__":
-    print(f"Modelo em uso: {modelo.nome}\n")
+    print(f"Modelo em uso: {MODELO}\n")
     argumentos = sys.argv[1:]
     decisoes = None
     if "--auto" in argumentos:

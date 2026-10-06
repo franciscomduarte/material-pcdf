@@ -1,4 +1,14 @@
 """
+ESQUELETO PARA IMPLEMENTAR AO VIVO (aula 7).
+Implemente as etapas na ordem. Cada uma está marcada com um comentário e um
+raise NotImplementedError: troque esse raise pelo código da etapa.
+  ETAPA 1 -- Ligar o grafo com o humano no meio
+  ETAPA 2 -- Iniciar e ler a pausa
+  ETAPA 3 -- validacao_humana: o interrupt()
+  ETAPA 4 -- Retomar com Command(resume=...)
+  ETAPA 5 -- O roteador depois do humano
+O texto abaixo descreve o exemplo pronto.
+
 Exemplo 06 -- HUMAN-IN-THE-LOOP: interromper, pedir decisão humana, retomar.
 
 No exemplo 05 a equipe rodava do começo ao fim, sem ninguém olhar o resultado.
@@ -45,15 +55,17 @@ from typing import TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from agents import Runner
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
+import agentes
 import prompts
 from caso import DENUNCIA_045
-from provedor import obter_modelo
+from provedor import configurar
 
-modelo = obter_modelo()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+MODELO = configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
 
 DB = Path(__file__).resolve().parent / "checkpoints.db"
 CONFIG = {"configurable": {"thread_id": "denuncia-045"}}
@@ -76,20 +88,20 @@ def orquestrador(estado: Estado) -> dict:
 
 def investigador(estado: Estado) -> dict:
     print("[INVESTIGADOR]")
-    return {"investigacao": modelo.gerar(prompts.investigar(estado["solicitacao"]))}
+    return {"investigacao": Runner.run_sync(agentes.investigador, estado["solicitacao"]).final_output}
 
 
 def juridico(estado: Estado) -> dict:
     print("[JURÍDICO]")
-    return {"analise_juridica": modelo.gerar(prompts.juridico(estado["investigacao"]))}
+    return {"analise_juridica": Runner.run_sync(agentes.juridico, estado["investigacao"]).final_output}
 
 
 def analista(estado: Estado) -> dict:
     print("[ANALISTA]")
     fatos, enquadramento = estado["investigacao"], estado["analise_juridica"]
-    risco = modelo.gerar(prompts.risco(fatos, enquadramento))
-    # A 1ª versão é um RASCUNHO curto (prompts.recomendar): um humano atento vai querer avaliá-la.
-    recomendacao = modelo.gerar(prompts.recomendar(fatos, enquadramento, risco))
+    risco = Runner.run_sync(agentes.risco, prompts.entrada_risco(fatos, enquadramento)).final_output
+    # A 1ª versão é um RASCUNHO curto (agentes.redator): um humano atento vai querer avaliá-la.
+    recomendacao = Runner.run_sync(agentes.redator, prompts.entrada_recomendar(fatos, enquadramento, risco)).final_output
     return {"analise_risco": risco, "recomendacao": recomendacao}
 
 
@@ -105,11 +117,10 @@ def resumo_para_humano(estado: Estado) -> str:
 
 
 def validacao_humana(estado: Estado) -> dict:
-    print("[HUMANO]       aguardando validação...")
-    # interrupt(): o grafo PARA aqui. O valor passado (o resumo) sai no retorno do invoke().
-    # Quando alguém retomar com Command(resume=X), interrupt() devolve X e o nó segue.
-    resposta = interrupt({"pergunta": "Aprovar análise? [sim/não]", "resumo": resumo_para_humano(estado)})
-    return {"aprovado": str(resposta).strip().lower() in ("sim", "s")}
+    # ETAPA 3 -- em validacao_humana: imprima "[HUMANO] aguardando validação..."
+    #   resposta = interrupt({"pergunta": ..., "resumo": resumo_para_humano(estado)})
+    #   devolva {"aprovado": ...} (True se a resposta for sim ou s)
+    raise NotImplementedError("ETAPA 3: validacao_humana")
 
 
 def finalizar(estado: Estado) -> dict:
@@ -123,46 +134,30 @@ def rejeitada(estado: Estado) -> dict:
 
 
 def rotear_apos_humano(estado: Estado) -> str:
-    return "sim" if estado["aprovado"] else "nao"
+    # ETAPA 5 -- em rotear_apos_humano: devolva "sim" se estado["aprovado"], senão "nao"
+    raise NotImplementedError("ETAPA 5: rotear_apos_humano")
 
 
 def construir(checkpointer):
-    construtor = StateGraph(Estado)
-    for nome, funcao in [
-        ("orquestrador", orquestrador), ("investigador", investigador), ("juridico", juridico),
-        ("analista", analista), ("validacao_humana", validacao_humana),
-        ("finalizar", finalizar), ("rejeitada", rejeitada),
-    ]:
-        construtor.add_node(nome, funcao)
-    construtor.add_edge(START, "orquestrador")
-    construtor.add_edge("orquestrador", "investigador")
-    construtor.add_edge("investigador", "juridico")
-    construtor.add_edge("juridico", "analista")
-    construtor.add_edge("analista", "validacao_humana")
-    construtor.add_conditional_edges("validacao_humana", rotear_apos_humano, {"sim": "finalizar", "nao": "rejeitada"})
-    construtor.add_edge("finalizar", END)
-    construtor.add_edge("rejeitada", END)
-    return construtor.compile(checkpointer=checkpointer)
+    # ETAPA 1 -- em construir(checkpointer): StateGraph(Estado) com os 7 nós
+    #   arestas: START -> orquestrador -> investigador -> juridico -> analista -> validacao_humana
+    #   add_conditional_edges("validacao_humana", rotear_apos_humano, {"sim": "finalizar", "nao": "rejeitada"})
+    #   finalizar e rejeitada -> END; compile(checkpointer=checkpointer)
+    raise NotImplementedError("ETAPA 1: construir")
 
 
 def iniciar(app) -> None:
-    print("== 1) EXECUÇÃO ATÉ A PAUSA ==")
-    resultado = app.invoke({"solicitacao": SOLICITACAO, "investigacao": "", "analise_juridica": "",
-                            "analise_risco": "", "recomendacao": "", "aprovado": False}, CONFIG)
-    pausa = resultado["__interrupt__"][0].value  # o que o nó passou ao interrupt()
-    print("\ninvoke() RETORNOU, mas a execução NÃO terminou. Está pausada; o estado está no SQLite.")
-    print(f"próximo nó: {app.get_state(CONFIG).next}\n")
-    print(pausa["resumo"])
-    print(pausa["pergunta"])
+    # ETAPA 2 -- em iniciar: invoke com o estado inicial e CONFIG
+    #   pausa = resultado["__interrupt__"][0].value
+    #   imprima o próximo nó (app.get_state(CONFIG).next), o resumo e a pergunta
+    raise NotImplementedError("ETAPA 2: iniciar")
 
 
 def retomar(app, decisao: str) -> None:
-    if not app.get_state(CONFIG).next:
-        raise SystemExit("Não há execução pausada: rode primeiro `python main.py` (sem argumentos).")
-    print(f"== 2) RETOMADA com a decisão humana: {decisao!r} ==")
-    app.invoke(Command(resume=decisao), CONFIG)
-    estado = app.get_state(CONFIG).values
-    print(f"\naprovado = {estado['aprovado']}")
+    # ETAPA 4 -- em retomar: se não houver get_state(CONFIG).next, encerre com a mensagem
+    #   app.invoke(Command(resume=decisao), CONFIG)
+    #   imprima aprovado = ... lido de app.get_state(CONFIG).values
+    raise NotImplementedError("ETAPA 4: retomar")
 
 
 def parte_a_simples() -> None:
@@ -179,7 +174,7 @@ def parte_a_simples() -> None:
 
 
 if __name__ == "__main__":
-    print(f"Modelo em uso: {modelo.nome}\n")
+    print(f"Modelo em uso: {MODELO}\n")
     argumentos = sys.argv[1:]
     if "--simples" in argumentos:
         parte_a_simples()

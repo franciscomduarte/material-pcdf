@@ -1,9 +1,10 @@
 # Dependências dos exemplos da Aula 7 (instale com: python -m pip install -r requirements.txt)
 # Versões testadas: langgraph 1.2.12 / langgraph-checkpoint-sqlite 3.1.1 / Python 3.10
-# Os exemplos 01-03 não usam LangGraph (Python puro).
+# Os agentes são Agent + Runner (openai-agents), como nas Aulas 1 a 4. Os exemplos 01-03 não usam LangGraph.
 # Todos os exemplos usam LLM REAL (OpenAI ou Ollama): precisam de OPENAI_API_KEY ou de um Ollama local. Sem banco externo.
 langgraph>=1.2,<2.0
 langgraph-checkpoint-sqlite>=3.0   # persistência em SQLite (exemplos 04, 06, 07 e desafio)
 python-dotenv>=1.0
-# Provedor real (import tardio: só é exigido se PROVEDOR=claude)
-anthropic>=1.8,<2.0
+# SDK de agentes (Agent + Runner); traz o cliente openai, que também fala com o Ollama
+openai-agents>=0.2
+openai>=1.0
