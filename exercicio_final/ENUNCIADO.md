@@ -297,7 +297,7 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
 
 **Onde olhar:** `aula5/exemplos/10_seguranca/server_seguro.py` (**o mais parecido**: token de supervisor, enum, auditoria no server),
 `aula5/exemplos/10_seguranca/agente_seguranca.py` (os 4 cenários de teste), `aula8/exemplos/06_excessive_agency/1_codigo_pronto/main.py`
-(o problema de dar tools demais), `aula8/exemplos/08_auditoria/1_codigo_pronto/main.py` (log estruturado),
+(o problema de dar tools demais),
 `aula8/exemplos/05_guardrail_saida/1_codigo_pronto/main.py` (guardrail de saída).
 
 > **Marco completo:** grafo com decisões, paralelismo, ciclo, aprovação humana persistida e escrita protegida e auditada.
@@ -316,7 +316,7 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
 **Pronto quando:** você responde, para `C2`, **onde o tempo foi gasto** e **quantos tokens** custou, só olhando os arquivos.
 
 **Onde olhar:** `aula3/agente_hook2.py` e `aula3/agente_hook3.py` (`RunHooks`), `aula5/exemplos/11_observabilidade/agente_observavel.py`
-(ler `result.new_items`), `aula8/exemplos/03_observabilidade/1_codigo_pronto/` (traces e métricas; Langfuse/Prometheus são **opcionais**).
+(ler `result.new_items`), `aula8/exemplos/03_observabilidade/1_codigo_pronto/passo1_trace.py` (traces; o Langfuse do passo 2 é **opcional**).
 
 ---
 
