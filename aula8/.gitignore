@@ -5,3 +5,15 @@ __pycache__/
 .env.*
 !.env.example
 saidas/*.jsonl
+
+# Material do professor: soluções e peças montadas ao vivo (não vão para os alunos)
+2_solucao/
+/_painel/
+/seguranca/
+/observabilidade/
+/testes/
+/pytest.ini
+/CHECKLIST_FINAL.md
+/docker/opa/policy.rego
+/docker/grafana/dashboard-reserva/
+/saidas/grafo_09.mmd
