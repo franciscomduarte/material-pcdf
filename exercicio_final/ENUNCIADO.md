@@ -19,9 +19,22 @@ Você vai construir esse sistema **em etapas**. Cada etapa usa o que foi ensinad
 **onde está o exemplo parecido**. Cada etapa também **aproveita o código da etapa anterior**. No fim, o sistema inteiro é um
 grafo LangGraph que usa agentes, tools, um MCP Server seu, persistência e segurança.
 
+> **🆕 Três itens usam um conceito já ensinado em um contexto que as aulas não usaram.** Não há exemplo pronto para eles:
+> o mecanismo você já conhece, mas terá de adaptá-lo a um problema diferente.
+>
+> | Item | Onde | Conceito (aula) | Como foi usado em aula | Contexto novo no exercício |
+> |---|---|---|---|---|
+> | **🆕 A** | Etapa 2 | paralelismo fan-out/fan-in (Aula 7) | rodar especialistas **diferentes** ao mesmo tempo, para ganhar **tempo** | rodar a **mesma** extração 3 vezes e **votar**, para ganhar **confiabilidade** |
+> | **🆕 B** | Etapa 6 | `RunHooks` (Aula 3) | **observar**: imprimir turnos e tools | **controlar**: barrar a execução quando um agente estoura o orçamento ou usa uma tool que não é dele |
+> | **🆕 C** | Etapa 8 | human-in-the-loop com `interrupt()` (Aula 7) | **aprovar a saída** (o parecer final) | **decidir a entrada**: o guardrail ficou em dúvida, então um atendente decide se o relato segue |
+
 ```
 START → receber → proteger_entrada ─┬─ bloqueado ─────────────────────────────→ recusar → END
-                                    └─ ok → extrair ─┬─ sem_local ────────────→ pedir_local → END
+                                    ├─ dúvida → triagem_humana (🆕 C, interrupt) ─ não → recusar
+                                    │                 └─ sim ─┐
+                                    └─ ok ────────────────────┴→ extrair (🆕 A: 3 votos)
+                                                     ┌──────────────┘
+                                                     ├─ sem_local ────────────→ pedir_local → END
                                                      └─ ok → localizar_delegacia (MCP)
                                                                ├─ sem_viatura ─→ escalar → END
                                                                └─ ok ─┬→ juridico ─────┐   (em paralelo)
@@ -44,7 +57,7 @@ START → receber → proteger_entrada ─┬─ bloqueado ───────
 |---|---|
 | `dados/delegacias.csv` | Delegacias fictícias (bairro, coordenadas, viaturas disponíveis, especialidade). Fonte do seu MCP Server. |
 | `dados/bairros.py` | Dicionário `BAIRROS` (bairro → latitude/longitude), o mesmo do desafio 2 da Aula 6. |
-| `dados/casos.py` | 8 relatos de teste, cada um com o **caminho esperado** no grafo. |
+| `dados/casos.py` | 10 relatos de teste, cada um com o **caminho esperado** no grafo. |
 | `requirements.txt` | Dependências (as mesmas das Aulas 5 a 7). |
 | `.env.example` | Modelo do `.env` (provedor e token de escrita). |
 
@@ -53,18 +66,18 @@ START → receber → proteger_entrada ─┬─ bloqueado ───────
 | # | Etapa | Tempo | Relógio | Aulas |
 |---|---|---|---|---|
 | 0 | Preparação do ambiente | 10 min | 0:00 – 0:10 | 1 |
-| 1 | Primeiro agente com tool local | 20 min | 0:10 – 0:30 | 1, 4 |
-| 2 | Extração estruturada do relato | 20 min | 0:30 – 0:50 | 2 |
+| 1 | Primeiro agente com tool local | 15 min | 0:10 – 0:25 | 1, 4 |
+| 2 | Extração estruturada do relato + **🆕 A votação em paralelo** | 25 min | 0:25 – 0:50 | 2, 7 |
 | 3 | Guardrails de entrada | 20 min | 0:50 – 1:10 | 2, 4, 8 |
 | 4 | Resiliência: data real, retry, idempotência, limites | 20 min | 1:10 – 1:30 | 3 |
-| 5 | MCP Server da delegacia | 35 min | 1:30 – 2:05 | 5 |
-| | *Intervalo* | 10 min | 2:05 – 2:15 | |
-| 6 | Equipe de especialistas (fluxo linear) ⇒ **Marco mínimo** | 25 min | 2:15 – 2:40 | 2, 4, 7 |
-| 7 | O fluxo como grafo (LangGraph) | 45 min | 2:40 – 3:25 | 6, 7 |
-| 8 | Persistência e aprovação humana | 30 min | 3:25 – 3:55 | 3, 7 |
-| 9 | Segurança: privilégio mínimo, token e auditoria ⇒ **Marco completo** | 25 min | 3:55 – 4:20 | 5, 8 |
-| 10 | Observabilidade | 15 min | 4:20 – 4:35 | 3, 5, 8 |
-| 11 | Demonstração e entrega | 25 min | 4:35 – 5:00 | todas |
+| 5 | MCP Server da delegacia | 30 min | 1:30 – 2:00 | 5 |
+| | *Intervalo* | 10 min | 2:00 – 2:10 | |
+| 6 | Equipe de especialistas + **🆕 B hooks como controle** ⇒ **Marco mínimo** | 35 min | 2:10 – 2:45 | 2, 3, 4, 7 |
+| 7 | O fluxo como grafo (LangGraph) | 45 min | 2:45 – 3:30 | 6, 7 |
+| 8 | Persistência e aprovação humana + **🆕 C humano na entrada** | 35 min | 3:30 – 4:05 | 3, 7 |
+| 9 | Segurança: privilégio mínimo, token e auditoria ⇒ **Marco completo** | 20 min | 4:05 – 4:25 | 5, 8 |
+| 10 | Observabilidade | 15 min | 4:25 – 4:40 | 3, 5, 8 |
+| 11 | Demonstração e entrega | 20 min | 4:40 – 5:00 | todas |
 
 > **Estratégia:** não trave numa etapa. Se passar de 1,5× o tempo sugerido, deixe um `# TODO` explicando o que falta e siga.
 > Uma etapa incompleta, mas que roda, vale mais do que um sistema perfeito que para na Etapa 4.
@@ -100,7 +113,7 @@ exercicio_final/
 
 ---
 
-## Etapa 1: Primeiro agente com tool local (20 min)
+## Etapa 1: Primeiro agente com tool local (15 min)
 
 **Tarefa**
 
@@ -116,7 +129,7 @@ exercicio_final/
 
 ---
 
-## Etapa 2: Extração estruturada do relato (20 min)
+## Etapa 2: Extração estruturada do relato e 🆕 votação em paralelo (25 min)
 
 **Tarefa**
 
@@ -129,6 +142,27 @@ exercicio_final/
 **Pronto quando:** `resultado.final_output` é um objeto `Ocorrencia` (não texto), `C2` sai com gravidade `alta` e `C5` sai com `bairro=None`.
 
 **Onde olhar:** `aula2/agente_output.py` (o básico), `aula2/agente_output2.py` (**o mais parecido**: ocorrência, envolvidos, enum de papéis).
+
+### 🆕 A: Paralelismo para votar, não para ganhar tempo
+
+**Conceito que você já conhece:** na Aula 7 (`aula7/exemplos/08_paralelismo/main.py`), Jurídico e Risco rodavam **ao mesmo tempo**
+porque eram tarefas **diferentes** e independentes: o objetivo era **velocidade**.
+
+**Contexto novo:** a gravidade decide se o caso vai para aprovação humana, e um LLM pode errá-la. Aqui você roda a **mesma**
+tarefa 3 vezes em paralelo e decide **por maioria**: o objetivo é **confiabilidade** (redundância).
+
+**Tarefa**
+
+1. Crie 3 extratores com instruções **ligeiramente diferentes** (ex.: um mais literal, um que pensa no risco à vítima, um
+   que pensa no tipo penal). Todos com o mesmo `output_type=Ocorrencia`.
+2. Rode os 3 **ao mesmo tempo** com `asyncio.gather(Runner.run(e1, relato), Runner.run(e2, relato), Runner.run(e3, relato))`.
+3. Faça a função `votar(ocorrencias) -> Ocorrencia`: `gravidade` e `bairro` por **maioria**; o resto, do extrator 1.
+   Regra de segurança: se **algum** voto disser `alta`, mas a maioria disser `baixa`, assuma `alta` e marque `divergencia=True`
+   (errar para o lado do cuidado). Guarde os votos para mostrar no registro.
+4. Meça o tempo: os 3 em paralelo levam ~o tempo de **um**? E em sequência?
+
+**Pronto quando:** `C1` e `C2` saem **unânimes**; em `C9` você mostra os 3 votos e a decisão; o tempo do paralelo fica perto de uma chamada.
+Responda no `ENTREGA.md`: votar **triplica o custo**. Em que casos vale a pena?
 
 ---
 
@@ -175,7 +209,7 @@ técnico), `aula3/agente_retry3.py` (**idempotência com hash**), `aula3/agente_
 
 ---
 
-## Etapa 5: MCP Server da delegacia (35 min)
+## Etapa 5: MCP Server da delegacia (30 min)
 
 Tire os dados de dentro do agente e coloque num **MCP Server** seu, `mcp_delegacia.py`, que lê `dados/delegacias.csv` e grava
 os registros em `saidas/registros.json` (ou SQLite).
@@ -204,7 +238,7 @@ os registros em `saidas/registros.json` (ou SQLite).
 
 ---
 
-## Etapa 6: Equipe de especialistas, em fluxo linear (25 min) ⇒ Marco mínimo
+## Etapa 6: Equipe de especialistas, em fluxo linear, e 🆕 hooks como controle (35 min) ⇒ Marco mínimo
 
 **Tarefa**
 
@@ -222,6 +256,26 @@ os registros em `saidas/registros.json` (ou SQLite).
 **Onde olhar:** `aula4/ex02_handoff_roteamento.py` (handoff), `aula4/ex03_agente_as_tool.py` (**agentes como tools, o mais parecido**),
 `aula2/agente_handoff2.py`, `aula7/exemplos/02_agentes_especializados/main.py` (especialistas com uma responsabilidade),
 `aula6/exemplos/01_fluxo_linear/main.py` (o fluxo linear e seus limites).
+
+### 🆕 B: Hooks para controlar, não só para observar
+
+**Conceito que você já conhece:** na Aula 3 (`aula3/agente_hook2.py`, `aula3/agente_loop.py`), os `RunHooks` só **imprimiam**:
+"turno 2", "chamou a ferramenta X". Eles **assistiam** ao loop do agente.
+
+**Contexto novo:** o mesmo gancho, que roda **antes** de cada tool (`on_tool_start`) e **antes** de cada chamada ao modelo
+(`on_llm_start`), pode **barrar** a execução. Use-o como uma camada de **governança** do `Coordenador`:
+
+1. **Orçamento de chamadas:** no máximo `MAX_TOOLS` (ex.: 4) chamadas de tool por execução.
+2. **Lista de permissões por agente:** um dicionário `{"Coordenador": {"consultar_juridico", "consultar_investigador"}, ...}`.
+   Se um agente tentar uma tool fora da sua lista, a execução para.
+3. **Orçamento de turnos do modelo:** no máximo N chamadas ao LLM (complementa o `max_turns` da Etapa 4, mas com a **sua** mensagem e o **seu** registro).
+
+Para barrar, lance uma exceção sua (ex.: `class LimiteExcedido(Exception)`) dentro do hook e trate-a em volta do `Runner`,
+devolvendo uma mensagem clara e registrando o motivo. Como `on_tool_start` roda **antes** da tool, ela **não executa**.
+
+**Pronto quando:** com `MAX_TOOLS = 1`, o `Coordenador` é parado **antes** de chamar o segundo especialista (prove com um
+`print` dentro da tool), a mensagem diz qual limite estourou, e com o limite normal tudo funciona. Na Etapa 10 você vai usar
+o **mesmo** hook para observabilidade: um mecanismo, dois papéis.
 
 > **Marco mínimo:** um sistema que, a partir do relato, protege a entrada, extrai, consulta o MCP e registra.
 > Se você chegou aqui, já está aprovado. As próximas etapas transformam o "script" em um **sistema**.
@@ -257,7 +311,7 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
 
 ---
 
-## Etapa 8: Persistência e aprovação humana (30 min)
+## Etapa 8: Persistência, aprovação humana e 🆕 humano na entrada (35 min)
 
 **Tarefa**
 
@@ -278,9 +332,34 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
 `aula7/exemplos/07_aprovacao_revisao/main.py` (**o mais parecido**: rejeição com feedback e limite de tentativas),
 `aula3/agente_human.py` (a versão com `needs_approval` do Agents SDK, para comparar).
 
+### 🆕 C: O humano decide a entrada, não só a saída
+
+**Conceito que você já conhece:** na Aula 7 (`aula7/exemplos/06_human_in_the_loop/` e `aula7/exemplos/07_aprovacao_revisao/`), o `interrupt()`
+pausava o grafo **no fim**, para o humano **aprovar o parecer** já pronto.
+
+**Contexto novo:** o guardrail da Etapa 3 dá uma **nota** de 0 a 1, e você a cortava num único limiar. Mas uma nota 0,55 não é
+nem "claramente ocorrência" nem "claramente fora do escopo". Em vez de o sistema **adivinhar**, um **atendente humano** decide,
+**no começo** do fluxo.
+
+**Tarefa**
+
+1. No nó `proteger_entrada`, troque o limiar único por **duas faixas**: nota `< LIMIAR_OK` (ex.: 0,4) → segue;
+   nota `>= LIMIAR_BLOQUEIO` (ex.: 0,8) → bloqueia; entre os dois → **dúvida**.
+2. Crie o nó `triagem_humana`, que chama `interrupt()` com o relato, a nota e o motivo do classificador, e recebe
+   `{"segue": bool, "observacao": str}`. **Sim** → `extrair`; **não** → `recusar`. A decisão e a observação vão para o estado
+   (e para a auditoria da Etapa 9).
+3. Use o **mesmo** `--retomar <thread_id>` do item 4 acima. Agora um mesmo relato pode pausar **duas vezes** (na entrada e na
+   aprovação): confira com `get_state(config).next` onde ele está.
+4. Imprima a nota de cada caso e **calibre** as duas faixas para que `C1`, `C2` passem direto, `C4` bloqueie e `C10` pause.
+
+**Pronto quando:** `C10` pausa em `triagem_humana`; retomar com "sim" leva à extração e com "nao" leva a `recusar`; `C1`
+não pausa nenhuma vez e `C2` pausa só na aprovação final.
+Responda no `ENTREGA.md`: qual a diferença entre esta pausa e o "incerto, peça esclarecimento" do `aula6/desafio3`
+(quem é consultado em cada caso)?
+
 ---
 
-## Etapa 9: Segurança: privilégio mínimo, token e auditoria (25 min) ⇒ Marco completo
+## Etapa 9: Segurança: privilégio mínimo, token e auditoria (20 min) ⇒ Marco completo
 
 **Tarefa**
 
@@ -320,9 +399,9 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
 
 ---
 
-## Etapa 11: Demonstração e entrega (25 min)
+## Etapa 11: Demonstração e entrega (20 min)
 
-1. Rode os **8 casos** de `dados/casos.py` e preencha, no `ENTREGA.md`, uma tabela:
+1. Rode os **10 casos** de `dados/casos.py` e preencha, no `ENTREGA.md`, uma tabela:
    caso | caminho percorrido | resultado (bloqueado / pediu local / escalado / pausou / registrado + protocolo) | bateu com o esperado?
 2. Cole o diagrama Mermaid do seu grafo.
 3. Responda, em até 3 linhas cada:
@@ -330,6 +409,9 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
    - Se o guardrail de entrada falhar, o que ainda protege o cadastro?
    - Por que o nó de aprovação não pode gravar nada antes do `interrupt()`?
    - Qual etapa foi feita com **MCP** e qual com **tool local**? Por que essa escolha?
+   - 🆕 A: votar triplica o custo. Em que casos vale a pena?
+   - 🆕 B: hook, guardrail e política no server (Etapa 9) podem barrar uma ação. Qual a diferença de **onde** cada um atua?
+   - 🆕 C: o que muda quando o humano decide a **entrada** em vez da **saída**?
    - O que você mudaria para colocar este sistema em produção?
 4. Faça commit do código (sem o `.env`!) e entregue o link ou o `.zip`.
 
@@ -339,17 +421,21 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
 
 | Etapa | Pontos | O que conta |
 |---|---|---|
-| 1 a 2 | 10 | agente com tool; saída Pydantic com enum e descrições |
-| 3 | 10 | dois guardrails distintos (regex e LLM), bloqueios com mensagens claras |
-| 4 | 10 | retry com backoff, falha tolerada, protocolo idempotente, limites de execução |
-| 5 | 15 | MCP Server com 4 tools bem descritas, testado no Inspector e usado por um agente |
-| 6 | 10 | especialistas com uma responsabilidade cada; coordenador com `as_tool` |
+| 1 a 2 | 8 | agente com tool; saída Pydantic com enum e descrições |
+| **🆕 A** | 5 | 3 extratores em paralelo, votação por maioria, regra conservadora, tempo medido |
+| 3 | 8 | dois guardrails distintos (regex e LLM), bloqueios com mensagens claras |
+| 4 | 8 | retry com backoff, falha tolerada, protocolo idempotente, limites de execução |
+| 5 | 12 | MCP Server com 4 tools bem descritas, testado no Inspector e usado por um agente |
+| 6 | 8 | especialistas com uma responsabilidade cada; coordenador com `as_tool` |
+| **🆕 B** | 5 | hook que barra por orçamento e por lista de permissões, antes de a tool rodar |
 | 7 | 15 | grafo com 3 decisões, fan-out/fan-in, ciclo com parada e `caminho` correto |
-| 8 | 10 | checkpoint, `interrupt()`, retomada em outro processo, limite de rejeições |
-| 9 | 10 | privilégio mínimo, token no server, auditoria ALLOW/DENY, guardrail de saída |
-| 10 a 11 | 10 | métricas por nó, 8 casos demonstrados, respostas de reflexão |
+| 8 | 9 | checkpoint, `interrupt()`, retomada em outro processo, limite de rejeições |
+| **🆕 C** | 5 | duas faixas no guardrail, `triagem_humana` com `interrupt()`, faixas calibradas |
+| 9 | 8 | privilégio mínimo, token no server, auditoria ALLOW/DENY, guardrail de saída |
+| 10 a 11 | 9 | métricas por nó, 10 casos demonstrados, respostas de reflexão |
 
 **Faixas:** até a Etapa 6 (Marco mínimo) ≈ 55 pontos; até a Etapa 9 (Marco completo) ≈ 90; o resto, Etapas 10–11 e bônus.
+Os itens 🆕 não bloqueiam os marcos: se travar num deles, siga com a etapa sem o item e volte depois.
 
 ## Bônus (para quem terminar antes; até +10 pontos, sem passar de 100)
 

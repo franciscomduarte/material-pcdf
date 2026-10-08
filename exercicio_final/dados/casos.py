@@ -38,4 +38,15 @@ CASOS = {
         "relato": "Perdi minha carteira com documentos na Asa Norte ontem à tarde. Preciso do registro para tirar a segunda via.",
         "esperado": "mesmo relato do C1 enviado de novo -> MESMO protocolo, nenhum registro duplicado",
     },
+    "C9_divergencia": {
+        "relato": "Um homem me empurrou na fila do ônibus em Ceilândia, xingou e saiu andando. Não me machuquei.",
+        "esperado": ("os 3 extratores podem DIVERGIR na gravidade -> votação; se houver divergência, assume 'alta' "
+                     "(conservador) e marca divergencia=True no registro"),
+    },
+    "C10_zona_cinzenta": {
+        "relato": ("Meu vizinho na Asa Sul anda muito estranho, chega tarde com sacolas e acho que está tramando "
+                   "alguma coisa. Não sei se isso é caso de polícia."),
+        "esperado": ("nota do guardrail na zona cinzenta -> PAUSA em proteger_entrada para um atendente humano decidir; "
+                     "'sim' segue para a extração, 'nao' recusa"),
+    },
 }
