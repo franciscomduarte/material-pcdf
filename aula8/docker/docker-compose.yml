@@ -1,0 +1,30 @@
+# Prometheus + Grafana + OPA para a aula. Suba com:  docker compose up -d   (dentro da pasta docker/)
+# Langfuse NÃO está aqui de propósito: o Langfuse local exige Postgres + ClickHouse + Redis + MinIO.
+# Para a aula use o Langfuse Cloud (grátis): https://cloud.langfuse.com
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # necessário no Linux; no Windows/Mac já existe
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"        # alunos abrem sem login (só para a aula!)
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on: [prometheus]
+
+  opa:
+    image: openpolicyagent/opa:latest
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]   # depois de editar o .rego: docker compose restart opa
+    ports: ["8181:8181"]
+    volumes:
+      - ./opa:/policies:ro

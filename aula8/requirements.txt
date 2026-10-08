@@ -1,0 +1,31 @@
+# Aula 9 (pasta aula8) -- Auto-scaling, Observabilidade e Segurança de Agentes
+# Instale com:  python -m pip install -r requirements.txt
+# Testado com Python 3.10 (a mesma da aula7). NÃO use Python 3.11.0: o openai-agents não importa nele
+# (bug do typing corrigido na 3.11.1). nemoguardrails exige Python < 3.14.
+# Todos os exemplos usam LLM REAL (OpenAI ou Ollama), sem Mock.
+
+# Agentes (Agent + Runner) e cliente que também fala com o Ollama
+openai-agents>=0.23,<1.0
+openai>=3.0,<4.0
+
+# Grafo (só a partir do exemplo de LangGraph)
+langgraph>=1.2,<2.0
+
+# OpenTelemetry: API + SDK + exportador OTLP/HTTP (é o que o Langfuse recebe)
+opentelemetry-api>=1.45,<2.0
+opentelemetry-sdk>=1.45,<2.0
+opentelemetry-exporter-otlp-proto-http>=1.45,<2.0
+
+# Langfuse v4 (observabilidade de LLM, construída sobre OpenTelemetry)
+langfuse>=4.17,<5.0
+
+# Métricas (endpoint /metrics para o Prometheus)
+prometheus-client>=0.26,<1.0
+
+# Guardrails de entrada/saída
+nemoguardrails>=0.24,<1.0
+
+# Utilitários
+python-dotenv>=1.0
+httpx>=0.28
+pytest>=9.0

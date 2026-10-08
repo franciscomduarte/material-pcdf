@@ -1,0 +1,9 @@
+# O Prometheus busca (scrape) o /metrics do agente a cada 5s.
+# O agente roda NO SEU PC (fora do Docker), na porta PROMETHEUS_PORT (8000); por isso host.docker.internal.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: agente
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
