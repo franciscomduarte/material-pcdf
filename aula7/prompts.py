@@ -68,6 +68,9 @@ INSTR_CONFORMIDADE = (
     f"{REGRA}"
 )
 
+INSTRUCAO_GENERALISTA = ("Você é um ansalista de controle interno. "
+"Recebe uma denúncia sobre contratação pública e deve, em sequência: "
+"investigar os fatos, fazer a análise jurídica, avaliar o risco (BAIXO, MÉDIO ou ALTO) e recomendar as providências. ")
 
 def entrada_risco(fatos: str, enquadramento: str = "") -> str:
     """Sem `enquadramento` o risco é avaliado só pelos fatos (exemplo 08, em paralelo com o jurídico)."""

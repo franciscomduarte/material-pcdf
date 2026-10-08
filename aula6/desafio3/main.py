@@ -1,35 +1,19 @@
 """
-DESAFIO 3 -- Decisões TIPADAS com o JEV: o grafo decide por PROBABILIDADE.  (esqueleto em 6 PONTOS DE CONTROLE)
+DESAFIO 3 -- SOLUÇÃO DE REFERÊNCIA (professor; esta pasta está no .gitignore).
 
-No desafio 1 o LLM também decidia o caminho (urgente ou normal): você pedia "responda com UMA palavra" e depois
-interpretava o texto. Aqui a decisão vem do JEV, um modelo que NÃO escreve texto: ele responde perguntas sobre o texto
-com NÚMEROS (probabilidades) e com a CONFIANÇA da resposta. O grafo usa esses números para escolher entre 5 caminhos:
+Organização: dentro de construir_grafo(), FASE A (as funções: nós e roteador, um bloco por ponto) e
+FASE B (ligar os pontos). Mesmo arquivo-base do esqueleto.
 
-    START -> receber -> avaliar (JEV) ─┬─ urgente  ──> encaminhar ──> responder (LLM) ──> END
-                                       ├─ sensivel ──> alertar_dado_sensivel ───────────> END
-                                       ├─ incerto  ──> pedir_esclarecimento ────────────> END
-                                       ├─ com_base ──> pesquisar ──> responder (LLM) ───> END
-                                       └─ sem_base ──────────────> responder (LLM) ─────> END
-
-LLM para ESCREVER, JEV para DECIDIR. Faça um ponto, confira, siga para o próximo:
-
-    python desafio3\\conferir.py          # mostra quais pontos já passaram (✓), o próximo e DESENHA o grafo
-
-JÁ PRONTO:  jev.py (o cliente do JEV: JevReal e JevMock), as PERGUNTAS_JEV, os LIMIARES, o Estado, a base, as tools,
-            o prompt e executar().
-SEU:        os NÓS, o ROTEADOR (que decide pelos números) e a MONTAGEM, dentro de construir_grafo().
-
-ATENÇÃO: cada pergunta ao JEV REAL gasta 1 crédito da conta. Os testes (conferir.py) usam o JevMock: não gastam nada.
-         `python desafio3\\main.py` usa decisor e LLM REAIS: o JEV (JEV_AI_API_KEY no .env) ou o Laya local ($env:JEV = "laya").
-         Sem nenhum dos dois, o programa para e diz o que fazer: não há decisor nem LLM de mentira.
-         A chave NUNCA vai no código nem no git.
+Rodar (a partir de aula6/):
+    python desafio3\\solucao\\main.py
+    $env:DESAFIO_DIR = "desafio3\\solucao"; python desafio3\\conferir.py
 """
 import sys                          # sys.path: permite importar provedor.py (na pasta aula6/)
 from pathlib import Path            # caminhos de arquivos (a pasta saida/)
 from typing import TypedDict        # o tipo do Estado (um dicionário com campos conhecidos)
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # provedor.py (escolhe o LLM)
-sys.path.insert(0, str(Path(__file__).resolve().parents[0]))  # jev.py e modelo_mock.py (desta pasta)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # provedor.py (escolhe o LLM)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # jev.py e modelo_mock.py (desta pasta)
 
 from langgraph.graph import END, START, StateGraph  # noqa: F401  StateGraph monta o grafo; START e END são a entrada e a saída
 
@@ -39,7 +23,7 @@ from provedor import obter_modelo_real    # escolhe o LLM REAL (OpenAI ou Ollama
 # ---- LIMIARES: os números a partir dos quais o grafo muda de caminho (experimente mudá-los!) ----
 LIMIAR_URGENTE = 0.8     # probabilidade de "urgente" a partir da qual o caso vai ao plantão
 LIMIAR_SENSIVEL = 0.8    # probabilidade de "dado sensível" a partir da qual o grafo recusa e alerta
-LIMIAR_CONFIANCA = 0.6   # confiança mínima no ASSUNTO; abaixo disso o grafo pede esclarecimento em vez de adivinhar
+LIMIAR_CONFIANCA = 0.1   # confiança mínima no ASSUNTO; abaixo disso o grafo pede esclarecimento em vez de adivinhar
 
 # ---- As perguntas que o grafo faz ao JEV (UMA chamada responde as 3 ao mesmo tempo) ----
 PERGUNTAS_JEV = {
@@ -51,7 +35,7 @@ PERGUNTAS_JEV = {
                 "instructions": "Qual é o assunto da solicitação?",
                 "criteria": {"segunda_via": "pede segunda via de documento", "passaporte": "trata de passaporte",
                              "horario": "pergunta o horário de atendimento",
-                             "outro": "qualquer outro assunto ou assunto indefinido"}},
+                             "outro": "qualquer outro assunto ou assunto indefinido"}}
 }
 
 
@@ -100,150 +84,77 @@ def prompt_responder(estado: Estado) -> str:
 
 # ------------------------------------------------------------------ o grafo
 def construir_grafo(modelo, jev):
-    """Monte e devolva o grafo COMPILADO. `modelo` escreve (modelo.gerar(prompt)); `jev` decide (jev.decidir(texto, perguntas)).
-
-    ---------------------------------------------------------------------------------------------
-    O desafio tem DUAS FASES (o arquivo está organizado assim):
-        FASE A -- construir as FUNÇÕES (os nós e o roteador), um bloco por ponto.
-        FASE B -- LIGAR os pontos: add_node, add_edge e add_conditional_edges, um bloco por ponto.
-
-    ORDEM DE TRABALHO, PONTO A PONTO (assim você recebe o ✓ logo):
-        1) escreva a função do ponto N  (Fase A)
-        2) ligue o ponto N              (Fase B)
-        3) rode  python desafio3\\conferir.py   e só siga quando o ponto N estiver ✓
-
-    ATENÇÕES:
-      - As funções vão DENTRO de construir_grafo (mesma indentação dos placeholders): é ali que `modelo` e `jev` existem.
-      - Para testar um ponto isolado, termine o grafo com `construtor.add_edge("<último nó>", END)`.
-        Quando o ponto seguinte pedir, APAGUE essa linha.
-      - Um nó devolve SÓ o que atualiza (um dict); o roteador só LÊ o estado e devolve um rótulo (texto).
-    ---------------------------------------------------------------------------------------------
-    """
-
+    """O grafo COMPILADO. `modelo` escreve (modelo.gerar); `jev` decide (jev.decidir)."""
     # ==============================================================================================
     # FASE A -- AS FUNÇÕES
     # ==============================================================================================
 
-    """
-    FUNÇÃO PONTO 1 -- receber.
-        limpa a entrada e inicializa TODOS os 8 campos do Estado ("" / 0.0)
-        dica: {"solicitacao": estado["solicitacao"].strip(), "p_urgente": 0.0, "p_sensivel": 0.0, "assunto": "", ...}
-    """
-    #colocar a função 1 aqui
-    # def receber(estado):
+    def receber(estado):
+        """PONTO 1: começa o processo: limpa a entrada e inicializa TODOS os campos do estado."""
+        return {"solicitacao": estado["solicitacao"].strip(), "p_urgente": 0.0, "p_sensivel": 0.0, "assunto": "",
+                "confianca": 0.0, "informacao": "", "encaminhamento": "", "resposta": ""}
 
-    """
-    FUNÇÃO PONTO 2 -- avaliar (nó do JEV: a decisão TIPADA).
-        respostas = jev.decidir(estado["solicitacao"], PERGUNTAS_JEV)       # UMA chamada, 3 perguntas
-        devolva os NÚMEROS, sem interpretar texto:
-            "p_urgente":  respostas["urgente"]["noul"]            (probabilidade de "sim", 0 a 1)
-            "p_sensivel": respostas["sensivel"]["noul"]
-            "assunto":    respostas["assunto"]["choice"]          (a opção escolhida)
-            "confianca":  respostas["assunto"]["confidence"]      (a confiança nela, 0 a 1)
-    """
-    #colocar a função 2 aqui
-    # def avaliar(estado):
+    def avaliar(estado):
+        """PONTO 2 (JEV): UMA chamada responde as 3 perguntas; guardamos os NÚMEROS no estado, sem interpretar texto."""
+        respostas = jev.decidir(estado["solicitacao"], PERGUNTAS_JEV)
+        return {"p_urgente": respostas["urgente"]["noul"],                 # noul: probabilidade de "sim"
+                "p_sensivel": respostas["sensivel"]["noul"],
+                "assunto": respostas["assunto"]["choice"],                 # choice: a opção escolhida
+                "confianca": respostas["assunto"]["confidence"]}           # e a confiança nela
 
-    """
-    FUNÇÃO PONTO 3 -- o caminho URGENTE: encaminhar (tool), responder (LLM) e o ROTEADOR.
-        encaminhar: {"encaminhamento": encaminhar_plantao(estado["solicitacao"])}
-        responder:  {"resposta": modelo.gerar(prompt_responder(estado))}
-        rotear_apos_avaliar(estado): se estado["p_urgente"] >= LIMIAR_URGENTE devolva "urgente"; senão "outros"
-        (é o roteador que DECIDE PELOS NÚMEROS; ele só LÊ o estado)
-    """
-    #colocar as funções do ponto 3 aqui
-    # def encaminhar(estado):
+    def encaminhar(estado):
+        """PONTO 3 (tool): caminho urgente: envia o caso ao plantão e guarda a confirmação."""
+        return {"encaminhamento": encaminhar_plantao(estado["solicitacao"])}
 
-    # def responder(estado):
+    def responder(estado):
+        """PONTO 3 (LLM): escreve a resposta final com o que existir no estado (encaminhamento, sem base ou procedimento)."""
+        return {"resposta": modelo.gerar(prompt_responder(estado))}
 
-    # def rotear_apos_avaliar(estado):
+    def alertar_dado_sensivel(estado):
+        """PONTO 4: o texto traz dado sensível: recusa, orienta e ENCERRA (nada vai para a base nem para o LLM)."""
+        return {"resposta": "Por segurança, não envie CPF, senhas ou números de cartão por aqui. "
+                            "Apague essas informações e descreva o seu pedido sem elas."}
 
-    """
-    FUNÇÃO PONTO 4 -- o DADO SENSÍVEL: alertar_dado_sensivel e EDITE o roteador.
-        alertar_dado_sensivel: {"resposta": "Por segurança, não envie CPF, senhas ou números de cartão por aqui. ..."}  (e encerra)
-        no roteador, DEPOIS da regra do urgente: se estado["p_sensivel"] >= LIMIAR_SENSIVEL devolva "sensivel"
-        (a ORDEM das regras é a prioridade dos caminhos: risco à vida vem antes de dado sensível)
-    """
-    #colocar a função 4 aqui
-    # def alertar_dado_sensivel(estado):
+    def pedir_esclarecimento(estado):
+        """PONTO 5: a confiança no assunto é baixa: em vez de adivinhar, pede que a pessoa explique e ENCERRA."""
+        return {"resposta": "Não consegui entender com segurança qual é o seu assunto. Pode explicar com outras palavras "
+                            "(por exemplo: segunda via de documento, passaporte ou horário de atendimento)?"}
 
-    """
-    FUNÇÃO PONTO 5 -- o INCERTO: pedir_esclarecimento e EDITE o roteador.
-        pedir_esclarecimento: {"resposta": "Não consegui entender com segurança qual é o seu assunto. Pode explicar ...?"}  (e encerra)
-        no roteador, depois das regras anteriores: se estado["confianca"] < LIMIAR_CONFIANCA devolva "incerto"
-        (o JEV devolve a CONFIANÇA: com ela o grafo pode NÃO adivinhar)
-    """
-    #colocar a função 5 aqui
-    # def pedir_esclarecimento(estado):
+    def pesquisar(estado):
+        """PONTO 6 (tool): procura o procedimento do assunto escolhido pelo JEV ("" se o assunto não está na base)."""
+        return {"informacao": BASE_CONHECIMENTO.get(estado["assunto"], "")}
 
-    """
-    FUNÇÃO PONTO 6 -- COM BASE e SEM BASE: pesquisar (tool) e a regra final do roteador.
-        pesquisar: {"informacao": BASE_CONHECIMENTO.get(estado["assunto"], "")}      ("" se o assunto não está na base)
-        roteador, regra final: "com_base" se estado["assunto"] está em BASE_CONHECIMENTO, senão "sem_base"
-        (o assunto "outro" não está na base: o grafo admite que não sabe e o LLM NÃO inventa)
-    """
-    #colocar a função 6 aqui
-    # def pesquisar(estado):
+    def rotear_apos_avaliar(estado):
+        """O roteador DECIDE PELOS NÚMEROS (só lê o estado): a ordem das regras é a prioridade dos caminhos."""
+        if estado["p_urgente"] >= LIMIAR_URGENTE:  # 1º: risco vence tudo
+            return "urgente"
+        if estado["p_sensivel"] >= LIMIAR_SENSIVEL:  # 2º: dado sensível
+            return "sensivel"
+        if estado["confianca"] < LIMIAR_CONFIANCA:  # 3º: JEV pouco confiante no assunto: não adivinhar
+            return "incerto"
+        return "com_base" if estado["assunto"] in BASE_CONHECIMENTO else "sem_base"  # 4º: o assunto está na base?
 
     # ==============================================================================================
     # FASE B -- LIGAR OS PONTOS
     # ==============================================================================================
-
-    """
-    PONTO 1 -- receber.  Grafo: START -> receber -> END
-        dica: construtor.add_node("receber", receber)  e  construtor.add_edge(START, "receber")
-    """
     construtor = StateGraph(Estado)
-    # construtor.add_node("receber", receber)
-    # construtor.add_edge(START, "receber")
-
-    # teste isolado do ponto 1: construtor.add_edge("receber", END)   (apague no ponto 2)
-
-    """
-    PONTO 2 -- avaliar (JEV).  Grafo: START -> receber -> avaliar -> END
-        dica: add_node("avaliar", avaliar)  e  add_edge("receber", "avaliar")
-    """
-    # construtor.add_node("avaliar", avaliar)
-    # construtor.add_edge("receber", "avaliar")
-
-    # teste isolado do ponto 2: construtor.add_edge("avaliar", END)   (apague no ponto 3)
-
-    """
-    PONTO 3 -- urgente.  avaliar -> (urgente) encaminhar -> responder -> END ;  (outros) -> END
-        dica: add_node de encaminhar e de responder;
-              add_conditional_edges("avaliar", rotear_apos_avaliar, {"urgente": "encaminhar", "outros": END})
-              add_edge("encaminhar", "responder")  e  add_edge("responder", END)
-    """
-    # construtor.add_node("encaminhar", encaminhar)
-    # construtor.add_node("responder", responder)
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("encaminhar", "responder")
-    # construtor.add_edge("responder", END)
-
-    """
-    PONTO 4 -- dado sensível.  avaliar -> (sensivel) alertar_dado_sensivel -> END
-        dica: add_node("alertar_dado_sensivel", alertar_dado_sensivel); add_edge("alertar_dado_sensivel", END)
-              no mapa de add_conditional_edges acrescente  "sensivel": "alertar_dado_sensivel"
-    """
-    # construtor.add_node("alertar_dado_sensivel", alertar_dado_sensivel)
-    # construtor.add_edge("alertar_dado_sensivel", END)
-
-    """
-    PONTO 5 -- incerto.  avaliar -> (incerto) pedir_esclarecimento -> END
-        dica: add_node("pedir_esclarecimento", pedir_esclarecimento); add_edge("pedir_esclarecimento", END)
-              no mapa acrescente  "incerto": "pedir_esclarecimento"
-    """
-    # construtor.add_node("pedir_esclarecimento", pedir_esclarecimento)
-    # construtor.add_edge("pedir_esclarecimento", END)
-
-    """
-    PONTO 6 -- com base e sem base.  avaliar -> (com_base) pesquisar -> responder ;  (sem_base) -> responder
-        dica: add_node("pesquisar", pesquisar); add_edge("pesquisar", "responder")
-              no mapa: TROQUE  "outros": END  por  "com_base": "pesquisar"  e  "sem_base": "responder"
-              (o mapa final tem 5 rótulos: urgente, sensivel, incerto, com_base e sem_base)
-    """
-    # construtor.add_node("pesquisar", pesquisar)
-    # construtor.add_edge("pesquisar", "responder")
+    construtor.add_node("receber", receber)                                      # PONTO 1
+    construtor.add_edge(START, "receber")
+    construtor.add_node("avaliar", avaliar)                                      # PONTO 2
+    construtor.add_edge("receber", "avaliar")
+    construtor.add_node("encaminhar", encaminhar)                                # PONTO 3
+    construtor.add_node("responder", responder)
+    construtor.add_node("alertar_dado_sensivel", alertar_dado_sensivel)          # PONTO 4
+    construtor.add_node("pedir_esclarecimento", pedir_esclarecimento)            # PONTO 5
+    construtor.add_node("pesquisar", pesquisar)                                  # PONTO 6
+    construtor.add_conditional_edges("avaliar", rotear_apos_avaliar, {
+        "urgente": "encaminhar", "sensivel": "alertar_dado_sensivel", "incerto": "pedir_esclarecimento",
+        "com_base": "pesquisar", "sem_base": "responder"})
+    construtor.add_edge("encaminhar", "responder")
+    construtor.add_edge("pesquisar", "responder")
+    construtor.add_edge("responder", END)
+    construtor.add_edge("alertar_dado_sensivel", END)
+    construtor.add_edge("pedir_esclarecimento", END)
     return construtor.compile()
 
 
@@ -301,7 +212,7 @@ def mermaid_do_grafo(app, caminho=None) -> str:
 
 def _salvar(nome: str, mermaid: str) -> None:
     """Salva o Mermaid em saida/<nome>.mmd (mermaid.live) e saida/<nome>.md (preview do VS Code)."""
-    pasta = Path(__file__).resolve().parent / "saida"  # a pasta desafio3/saida (criada logo abaixo)
+    pasta = Path(__file__).resolve().parent.parent / "saida"  # a pasta desafio3/saida (criada logo abaixo)
     pasta.mkdir(exist_ok=True)
     (pasta / f"{nome}.mmd").write_text(mermaid, encoding="utf-8")
     (pasta / f"{nome}.md").write_text(f"# {nome}\n\n```mermaid\n{mermaid}\n```\n", encoding="utf-8")

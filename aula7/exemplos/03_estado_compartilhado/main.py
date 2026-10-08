@@ -57,32 +57,30 @@ from provedor import configurar
 
 MODELO = configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
 
-
 class Estado(TypedDict):
-    # ETAPA 1 -- declare os campos de Estado (todos str):
-    #   solicitacao, investigacao, analise_juridica, analise_risco, recomendacao
-    raise NotImplementedError("ETAPA 1: campos do Estado")
+    solicitacao: str
+    analise_juridica: str
+    investigacao: str
+    analise_risco: str
+    recomendacao: str
 
 
 def investigador(estado: Estado) -> dict:
-    # ETAPA 3 -- investigador: imprima o log, gere os fatos com Runner.run_sync(agentes.investigador, ...).final_output
-    #   e devolva {"investigacao": ...}
-    #   juridico: rode agentes.juridico com estado["investigacao"] e devolva {"analise_juridica": ...}
-    raise NotImplementedError("ETAPA 3: investigador e juridico (investigador)")
+    print("[INVESTIGADOR]")
+    fatos = Runner.run_sync(agentes.investigador, estado["solicitacao"]).final_output
+    return {"investigacao": fatos}
 
 
 def juridico(estado: Estado) -> dict:
-    # ETAPA 3 -- investigador: imprima o log, gere os fatos com Runner.run_sync(agentes.investigador, ...).final_output
-    #   e devolva {"investigacao": ...}
-    #   juridico: rode agentes.juridico com estado["investigacao"] e devolva {"analise_juridica": ...}
-    raise NotImplementedError("ETAPA 3: investigador e juridico (juridico)")
+    print("[JURÍDICO]")
+    texto = Runner.run_sync(agentes.juridico, estado["investigacao"]).final_output
+    return {"analise_juridica": texto}
 
 
 def analista(estado: Estado) -> dict:
-    # ETAPA 4 -- analista: leia investigacao e analise_juridica, gere o risco (agentes.risco, entrada prompts.entrada_risco)
-    #   e a recomendacao (agentes.redator, entrada prompts.entrada_recomendar)
-    #   devolva {"analise_risco": ..., "recomendacao": ...}
-    raise NotImplementedError("ETAPA 4: analista")
+    print("[ANALISTA]")
+    analise = Runner.run_sync(agentes.risco, estado["analise_juridica"]).final_output
+    return {"analise_risco": analise, "recomendacao": analise}
 
 
 ESPECIALISTAS = [investigador, juridico, analista]
@@ -93,10 +91,21 @@ memoria: list[dict] = []
 
 
 def executar(solicitacao: str) -> Estado:
-    # ETAPA 2 -- em executar: crie o estado inicial (todos os campos, os demais "")
-    #   para cada especialista em ESPECIALISTAS, faça estado.update(especialista(estado))
-    raise NotImplementedError("ETAPA 2: motor de executar")
-    # ETAPA 5 -- guarde na MEMÓRIA: memoria.append({"solicitacao": ..., "risco": ...})
+    
+    estado: Estado = {
+        "solicitacao": solicitacao,
+        "investigacao": "",
+        "analise_juridica": "",
+        "analise_risco": "",
+        "recomendacao": "",
+    }
+
+    for especialista in ESPECIALISTAS:
+        estado.update(especialista(estado))
+
+    print("\n --- segunda execução: adicionando à MEMÓRIA ---")
+    memoria.append({"solicitacao": solicitacao, "risco": estado["analise_risco"]})
+
     return estado
 
 
@@ -108,4 +117,8 @@ if __name__ == "__main__":
     for campo, valor in estado.items():
         print(f"  {campo:17}: {valor}")
 
-    # ETAPA 5 -- rode a segunda denúncia (DENUNCIA_051) e imprima a MEMÓRIA (histórico de análises)
+    print("\n--- segunda execução: o ESTADO recomeça vazio; a MEMÓRIA continua ---")
+    executar(DENUNCIA_051)
+    print("\nMEMÓRIA (histórico de análises):")
+    for i, item in enumerate(memoria, start=1):
+        print(f"  {i}. {item['solicitacao']} -> {item['risco']}")

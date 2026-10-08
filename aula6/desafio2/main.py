@@ -51,6 +51,9 @@ from mcp.client.stdio import stdio_client             # fala com o servidor MCP 
 
 from provedor import obter_modelo_real    # escolhe o LLM REAL (OpenAI ou Ollama) pelo .env; sem ele, o programa para
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "desafio3"))
+from jev import obter_jev  # type: ignore[reportMissingImports]
+
 MAX_TENTATIVAS = 3  # limite de vezes que o ciclo gerar_ordem -> validar -> revisar pode repetir (a CONDIÇÃO DE PARADA)
 LIMITE_APOIO_MIN = 8      # gravidade alta + tempo de chegada acima disto (minutos) -> aciona apoio
 VELOCIDADE_KMH = 40       # velocidade média da viatura: tempo = distância / velocidade
@@ -64,6 +67,22 @@ BAIRROS = {
     "ceilândia": (-15.8190, -48.1070),
     "sobradinho": (-15.6500, -47.7900),
     "gama": (-16.0200, -48.0600),
+}
+
+LIMIAR_GRAVE = 0.5       # p_grave a partir da qual a gravidade é "alta"
+LIMIAR_CONFIANCA = 0.6   # confiança mínima no bairro; abaixo disso o grafo NÃO adivinha e pede o endereço
+
+# As perguntas ao decisor: UMA chamada responde as 3. As opções do "bairro" são as mesmas chaves de BAIRROS.
+PERGUNTAS_JEV = {
+    "grave": {"type": "noul",  # noul = sim/não: devolve a probabilidade de "sim" (0 a 1)
+              "instructions": "A ocorrência envolve risco à vida, violência contra pessoa ou arma?"},
+    "tipo": {"type": "choice", "instructions": "Qual o tipo da ocorrência?",
+             "criteria": {"assalto": "roubo ou assalto", "agressao": "briga ou pessoa ferida",
+                          "disparo": "tiro ou arma de fogo disparada", "perturbacao": "barulho ou perturbação do sossego",
+                          "outro": "qualquer outro tipo"}},
+    "bairro": {"type": "choice", "instructions": "Em qual bairro ocorre?",
+               "criteria": {**{b: f"a ocorrência é em {b.title()}" for b in BAIRROS},
+                            "nenhum": "nenhum bairro citado, ou não dá para saber qual"}},
 }
 
 
@@ -83,6 +102,8 @@ class Estado(TypedDict):
     valida: bool          # escrito por validar (LLM): True se a ordem cita a unidade; decide se o ciclo continua
     tentativas: int       # escrito por gerar_ordem: quantas ordens já foram geradas; o roteador compara com MAX_TENTATIVAS
     feedback: str         # o motivo da reprovação: validar escreve, revisar reforça e gerar_ordem lê para corrigir
+    p_grave: float        # escrito por extrair (decisor): probabilidade de gravidade (0 a 1); -1.0 = sem decisor
+    confianca_bairro: float  # escrito por extrair (decisor): confiança no bairro (0 a 1); -1.0 = sem decisor
 
 
 # ----------------------------------------------- integrações (PRONTAS: não precisa mexer)
@@ -184,10 +205,10 @@ def ordem_aprovada(texto: str) -> bool:
 
 
 # ------------------------------------------------------------------ o grafo
-def construir_grafo(modelo):
+def construir_grafo(modelo, jev=None):
     """Monte e devolva o grafo COMPILADO. `modelo` tem um método: modelo.gerar(prompt) -> texto.
 
-    ---------------------------------------------------------------------------------------------
+    -------------------------------------------------------------------------------------
     O desafio tem DUAS FASES (o arquivo está organizado assim):
         FASE A -- construir as FUNÇÕES (os nós e os roteadores), um bloco por ponto.
         FASE B -- LIGAR os pontos: add_node, add_edge e add_conditional_edges, um bloco por ponto.
@@ -218,6 +239,25 @@ def construir_grafo(modelo):
     """
     #colocar a função 1 aqui
     # def receber(estado):
+    def receber(estado):
+        return {
+            "solicitacao": estado["solicitacao"].strip(),
+            "tipo": "",
+            "gravidade": "",
+            "bairro": "",
+            "latitude": 0.0,
+            "longitude": 0.0,
+            "unidades": [],
+            "chuva_mm": -1.0,
+            "tempo_min": 0.0,
+            "observacao": "",
+            "ordem": "",
+            "valida": False,
+            "tentativas": 0,
+            "feedback": "",
+            "p_grave": -1.0,
+            "confianca_bairro": -1.0
+        }
 
     """
     FUNÇÃO PONTO 2 -- extrair (LLM).
@@ -226,6 +266,17 @@ def construir_grafo(modelo):
     """
     #colocar a função 2 aqui
     # def extrair(estado):
+    def extrair(estado):
+        return interpretar_extracao(modelo.gerar(prompt_extrair(estado)))
+
+    def extrair_jev(estado):  # COM decisor: números tipados, sem interpretar texto, e com CONFIANÇA
+        r = jev.decidir(estado["solicitacao"], PERGUNTAS_JEV)       # UMA chamada, 3 perguntas
+        p_grave = r["grave"]["noul"]                                # noul: probabilidade de "sim"
+        escolhido, confianca = r["bairro"]["choice"], r["bairro"]["confidence"]
+        bairro = escolhido if escolhido in BAIRROS and confianca >= LIMIAR_CONFIANCA else ""  # baixa confiança: NÃO adivinha
+        return {"tipo": r["tipo"]["choice"], "gravidade": "alta" if p_grave >= LIMIAR_GRAVE else "baixa",
+                "bairro": bairro, "p_grave": p_grave, "confianca_bairro": confianca}
+
 
     """
     FUNÇÃO PONTO 3 -- localizar (tool local), pedir_endereco (função) e o roteador.
@@ -235,10 +286,20 @@ def construir_grafo(modelo):
     """
     #colocar as funções do ponto 3 aqui
     # def localizar(estado):
+    def localizar(estado):
+        coords = BAIRROS.get(estado["bairro"].lower())
+        if coords:
+            return {"latitude": coords[0], "longitude": coords[1]}
+        else:
+            return {"latitude": 0.0, "longitude": 0.0}
 
     # def pedir_endereco(estado):
+    def pedir_endereco(estado):
+        return {"ordem": "Não consegui localizar a ocorrência. Informe o bairro (ex.: Asa Sul, Taguatinga)."}
 
     # def rotear_apos_localizar(estado):
+    def rotear_apos_localizar(estado):
+        return "ok" if estado["latitude"] != 0.0 else "sem_local"
 
     """
     FUNÇÃO PONTO 4 -- buscar_unidades (MCP), escalar (função) e o roteador.
@@ -249,10 +310,19 @@ def construir_grafo(modelo):
     """
     #colocar as funções do ponto 4 aqui
     # def buscar_unidades(estado):
+    def buscar_unidades(estado):
+        return {"unidades": chamar_mcp("unidades_proximas", 
+                {"latitude": estado["latitude"], 
+                 "longitude": estado["longitude"], 
+                 "raio_km": 20, "limite": 2})}
 
     # def escalar(estado):
+    def escalar(estado):
+        return {"ordem": f"Nenhuma unidade com viatura disponível em 20 km de {estado['bairro']}: ocorrência escalada ao comando."}
 
     # def rotear_apos_buscar(estado):
+    def rotear_apos_buscar(estado):
+        return "ok" if estado["unidades"] else "sem_unidade"
 
     """
     FUNÇÃO PONTO 5 -- consultar_clima (API) e calcular_tempo (tool local).
@@ -263,8 +333,19 @@ def construir_grafo(modelo):
     """
     #colocar as funções do ponto 5 aqui
     # def consultar_clima(estado):
+    def consultar_clima(estado):
+        return {"chuva_mm": buscar_chuva(estado["latitude"], estado["longitude"])}
 
     # def calcular_tempo(estado):
+    def calcular_tempo(estado):
+        tempo = estado["unidades"][0]["distancia_km"] / VELOCIDADE_KMH * 60
+        if estado["chuva_mm"] > 0:
+            tempo *= 1.5
+            observacao = ""
+        else:
+            observacao = "Clima indisponível: tempo sem ajuste por chuva." if estado["chuva_mm"] < 0 else ""
+        return {"tempo_min": round(tempo, 1), "observacao": observacao}
+
 
     """
     FUNÇÃO PONTO 6 -- acionar_apoio, o roteador e gerar_ordem (LLM).
@@ -274,10 +355,21 @@ def construir_grafo(modelo):
     """
     #colocar as funções do ponto 6 aqui
     # def acionar_apoio(estado):
-
-    # def rotear_apos_tempo(estado):
+    def acionar_apoio(estado):
+        aviso = f"Apoio: {estado['unidades'][1]['nome']}." if len(estado['unidades']) > 1 else "Sem unidade de apoio no raio."
+        return {"observacao": f"{estado['observacao']} {aviso}".strip()}
 
     # def gerar_ordem(estado):
+    def gerar_ordem(estado):
+        return {
+            "ordem": modelo.gerar(prompt_gerar_ordem(estado)),
+            "tentativas": estado["tentativas"] + 1
+        }
+
+    # def rotear_apos_tempo(estado):
+    def rotear_apos_tempo(estado):
+        return "apoio" if estado["gravidade"] == "alta" and estado["tempo_min"] > LIMITE_APOIO_MIN else "normal"
+
 
     """
     FUNÇÃO PONTO 7 -- o CICLO: validar (LLM), revisar e o roteador de validar.
@@ -287,10 +379,18 @@ def construir_grafo(modelo):
     """
     #colocar as funções do ponto 7 aqui
     # def validar(estado):
+    def validar(estado):
+        texto = modelo.gerar(prompt_validar(estado))
+        ok = ordem_aprovada(texto)
+        return {"valida": ok, "feedback": "" if ok else texto.strip()}
 
     # def revisar(estado):
+    def revisar(estado):
+        return {"feedback": f"corrija — {estado['feedback']}"}
 
     # def rotear_apos_validar(estado):
+    def rotear_apos_validar(estado):
+        return "fim" if estado["valida"] else "erro"
 
     """
     FUNÇÃO PONTO 8 -- a PARADA: não há função nova. EDITE rotear_apos_validar (a do ponto 7):
@@ -298,6 +398,13 @@ def construir_grafo(modelo):
         a condição de parada é lida do ESTADO, não de uma variável local
     """
     #no ponto 8 você só acrescenta duas linhas em rotear_apos_validar
+    def rotear_apos_validar(estado):
+        if estado["valida"]:
+            return "fim"
+        elif estado["tentativas"] >= MAX_TENTATIVAS:
+            return "fim"
+        else:
+            return "erro"
 
     # ==============================================================================================
     # FASE B -- LIGAR OS PONTOS
@@ -308,18 +415,14 @@ def construir_grafo(modelo):
         dica: construtor.add_node("receber", receber)  e  construtor.add_edge(START, "receber")
     """
     construtor = StateGraph(Estado)
-    # construtor.add_node("receber", receber)
-    # construtor.add_edge(START, "receber")
-
-    # teste isolado do ponto 1: construtor.add_edge("receber", END)   (apague no ponto 2)
+    construtor.add_node("receber", receber)
+    construtor.add_edge(START, "receber")
 
     """
     PONTO 2 -- extrair.  Grafo: START -> receber -> extrair -> END
     """
-    # construtor.add_node("extrair", extrair)
-    # construtor.add_edge("receber", "extrair")
-
-    # teste isolado do ponto 2: construtor.add_edge("extrair", END)   (apague no ponto 3)
+    construtor.add_node("extrair", extrair_jev if jev else extrair)
+    construtor.add_edge("receber", "extrair")
 
     """
     PONTO 3 -- localizar.  extrair -> localizar -> (ok) ... | (sem_local) pedir_endereco -> END
@@ -328,11 +431,9 @@ def construir_grafo(modelo):
               add_edge("pedir_endereco", END)
         (até o ponto 4 existir, "ok" vai para END)
     """
-    # construtor.add_node("localizar", localizar)
-    # construtor.add_node("pedir_endereco", pedir_endereco)
-    # construtor.add_edge("extrair", "localizar")
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("pedir_endereco", END)
+    construtor.add_node("localizar", localizar)
+    construtor.add_node("pedir_endereco", pedir_endereco)
+    construtor.add_edge("extrair", "localizar")
 
     # teste isolado do ponto 3: rode o conferir ("sem_local" já fecha com END)
 
@@ -344,10 +445,9 @@ def construir_grafo(modelo):
               add_edge("escalar", END)
         (até o ponto 5 existir, "ok" vai para END)
     """
-    # construtor.add_node("buscar_unidades", buscar_unidades)
-    # construtor.add_node("escalar", escalar)
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("escalar", END)
+    construtor.add_node("buscar_unidades", buscar_unidades)
+    construtor.add_node("escalar", escalar)
+    construtor.add_conditional_edges("localizar", rotear_apos_localizar, {"ok": "buscar_unidades", "sem_local": "pedir_endereco"})
 
     # teste isolado do ponto 4: rode o conferir ("sem_unidade" já fecha com END)
 
@@ -356,11 +456,10 @@ def construir_grafo(modelo):
         dica: no ponto 4, "ok" passa a ir para "consultar_clima"
               add_node de consultar_clima e de calcular_tempo; add_edge("consultar_clima", "calcular_tempo")
     """
-    # construtor.add_node("consultar_clima", consultar_clima)
-    # construtor.add_node("calcular_tempo", calcular_tempo)
-    # construtor.add_edge("consultar_clima", "calcular_tempo")
-
-    # teste isolado do ponto 5: construtor.add_edge("calcular_tempo", END)   (apague no ponto 6)
+    construtor.add_node("consultar_clima", consultar_clima)
+    construtor.add_node("calcular_tempo", calcular_tempo)
+    construtor.add_edge("consultar_clima", "calcular_tempo")
+    construtor.add_conditional_edges("buscar_unidades", rotear_apos_buscar, {"ok": "consultar_clima", "sem_unidade": "escalar"})
 
     """
     PONTO 6 -- apoio e ordem.  calcular_tempo -> (apoio) acionar_apoio -> gerar_ordem | (normal) gerar_ordem
@@ -368,12 +467,11 @@ def construir_grafo(modelo):
               add_conditional_edges("calcular_tempo", rotear_apos_tempo, {"apoio": "acionar_apoio", "normal": "gerar_ordem"})
               add_edge("acionar_apoio", "gerar_ordem")
     """
-    # construtor.add_node("acionar_apoio", acionar_apoio)
-    # construtor.add_node("gerar_ordem", gerar_ordem)
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("acionar_apoio", "gerar_ordem")
-
-    # teste isolado do ponto 6: construtor.add_edge("gerar_ordem", END)   (apague no ponto 7)
+    construtor.add_node("acionar_apoio", acionar_apoio)
+    construtor.add_node("gerar_ordem", gerar_ordem)
+    construtor.add_conditional_edges("calcular_tempo", rotear_apos_tempo, {"apoio": "acionar_apoio", "normal": "gerar_ordem"})
+    construtor.add_edge("acionar_apoio", "gerar_ordem")
+    
 
     """
     PONTO 7 -- o CICLO.  gerar_ordem -> validar -> (erro) revisar -> gerar_ordem | (fim) END
@@ -381,16 +479,18 @@ def construir_grafo(modelo):
               add_conditional_edges("validar", rotear_apos_validar, {"fim": END, "erro": "revisar"})
               add_edge("revisar", "gerar_ordem")   <- o ciclo é UMA ARESTA do grafo (nada de while dentro de um nó!)
     """
-    # construtor.add_node("validar", validar)
-    # construtor.add_node("revisar", revisar)
-    # construtor.add_edge("gerar_ordem", "validar")
-    # construtor.add_conditional_edges(...)
-    # construtor.add_edge("revisar", "gerar_ordem")
+    construtor.add_node("validar", validar)
+    construtor.add_node("revisar", revisar)
+    construtor.add_edge("gerar_ordem", "validar")
+    construtor.add_conditional_edges("validar", rotear_apos_validar, {"fim": END, "erro": "revisar"})
+    construtor.add_edge("revisar", "gerar_ordem")
+    construtor.add_edge("gerar_ordem", END)
 
     """
     PONTO 8 -- a PARADA.  não há ligação nova: o mapa do ponto 7 já leva "fim" ao END.
         o que muda é o roteador (Fase A, ponto 8). Confira: o ciclo para em MAX_TENTATIVAS.
     """
+
     return construtor.compile()
 
 
@@ -560,8 +660,12 @@ CASOS = [caso["pergunta"] for caso in PERGUNTAS_DE_TESTE]
 if __name__ == "__main__":
     # o LLM que será entregue ao grafo (e que os nós chamam por modelo.gerar):
     modelo = obter_modelo_real()  # LLM REAL (OpenAI por padrão; Ollama com PROVEDOR=ollama); sem chave, o programa para
-    print(f"Modelo em uso: {modelo.nome}\n")
-    app = construir_grafo(modelo)  # o grafo compilado, pronto para executar
+
+    jev = None if "--sem-decisor" in sys.argv else obter_jev()  # decisor REAL (JEV ou Laya); --sem-decisor volta ao LLM
+    print(f"Modelo em uso: {modelo.nome} | decisor: {jev.nome if jev else 'nenhum (o LLM extrai)'}\n")
+    app = construir_grafo(modelo, jev)  # o grafo compilado, pronto para executar
+
+     # o grafo compilado, pronto para executar
     if "--perguntas" in sys.argv:
         rodar_perguntas(app)
         raise SystemExit

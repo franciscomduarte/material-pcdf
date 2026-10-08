@@ -44,18 +44,24 @@ SOLICITACAO = DENUNCIA_045
 
 
 def executar(agente: Agent, contexto: str) -> str:
-    """Roda UM agente com a entrada `contexto` e devolve o texto que ele respondeu."""
-    # ETAPA 3 -- corpo de executar:
-    #   imprima "[NOME]" (agente.name em maiúsculas) e devolva Runner.run_sync(agente, contexto).final_output
-    raise NotImplementedError("ETAPA 3: função executar")
+    """Roda um agente com o contexto dado e devolve a saída final."""
+    return Runner.run_sync(agente, contexto).final_output
 
 
-# ETAPA 1 -- crie investigador, juridico e analista com Agent(name=..., instructions=...)
-#   cada um com UMA responsabilidade (use prompts.REGRA no fim das instruções)
-raise NotImplementedError("ETAPA 1: três especialistas")
+investigador = Agent(name="Investigador", instructions=prompts.INSTR_INVESTIGADOR)
+
+juridico = Agent(name="Jurídico", instructions=prompts.INSTR_JURIDICO)
+
+analista = Agent(name="Analista", instructions=prompts.INSTR_RISCO)
 
 if __name__ == "__main__":
-    # ETAPA 2 -- bloco principal:
-    #   chame executar(investigador, ...), depois executar(juridico, fatos), depois executar(analista, fatos + enquadramento)
-    #   imprima cada resultado e a observação sobre as variáveis soltas
-    raise NotImplementedError("ETAPA 2: bloco principal")
+    fatos = executar(investigador, SOLICITACAO);
+    print ("\nFatos levantados pelo Investigador:\n", fatos)
+
+    enquadramento = executar(juridico, fatos);
+    print ("\nEnquadramento jurídico pelo Jurídico:\n", enquadramento)
+
+    risco = executar(analista, enquadramento);
+    print ("\nAvaliação de risco pelo Analista:\n", risco)
+
+    

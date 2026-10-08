@@ -46,21 +46,22 @@ import prompts
 from caso import DENUNCIA_045
 from provedor import configurar
 
-MODELO = configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
+configurar()  # LLM REAL: PROVEDOR no .env (openai ou ollama)
 
 SOLICITACAO = DENUNCIA_045  # os FATOS vêm na denúncia (veja caso.py): o LLM não pode inventá-los
 
 
 def agente_generalista(solicitacao: str) -> str:
     """UM agente, UMA instrução: investiga, interpreta, avalia risco e recomenda."""
-    # ETAPA 2 -- escreva o corpo de agente_generalista:
-    #   imprima "[AGENTE GENERALISTA] eu faço tudo...", crie o Agent(name="Generalista", instructions=prompts.INSTR_TUDO)
-    #   e devolva Runner.run_sync(generalista, solicitacao).final_output
-    raise NotImplementedError("ETAPA 2: corpo de agente_generalista")
+    generalista = Agent(
+        name="Agente Generalista",
+        instructions=prompts.INSTR_TUDO
+        ) 
+    return Runner.run_sync(generalista, solicitacao)
 
 
 if __name__ == "__main__":
-    # ETAPA 1 -- bloco principal:
-    #   imprima o modelo em uso, a solicitação e a resposta de agente_generalista(SOLICITACAO)
-    #   termine com: "Onde termina a investigação? Quem fez a análise jurídica? Não dá para saber."
-    raise NotImplementedError("ETAPA 1: bloco principal")
+    resposta = agente_generalista(    "Denúncia anônima sobre o Pregão 045/2026: o contrato, de R$ 2,8 milhões, teve o edital divulgado com apenas "
+    "3 dias de antecedência da abertura das propostas. Houve um único proponente e um dos sócios da empresa "
+    "vencedora é ex-servidor do órgão contratante.")
+    print("\n\nRESPOSTA FINAL:\n", resposta.final_output)
