@@ -88,28 +88,62 @@ def consolidar(estado: Estado) -> dict:
 
 
 def construir_paralelo():
-    # ETAPA 3 -- em construir_paralelo: g = StateGraph(Estado) com os 4 nós
-    #   START -> investigador; investigador -> juridico e investigador -> risco (fan-out)
-    #   g.add_edge(["juridico", "risco"], "consolidar") (fan-in); consolidar -> END; return g.compile()
-    raise NotImplementedError("ETAPA 3: construir_paralelo")
+    construtor = StateGraph(Estado)
+
+    for nome, func in [
+        ("investigador", investigador),
+        ("juridico", juridico),
+        ("risco", risco),
+        ("consolidar", consolidar),
+    ]:
+        construtor.add_node(nome, func)
+
+    construtor.add_edge(START, "investigador")
+    construtor.add_edge("investigador", "juridico")  # fan-out
+    construtor.add_edge("investigador", "risco")     # fan-out
+    construtor.add_edge(["juridico", "risco"], "consolidar")  # fan-in
+    construtor.add_edge("consolidar", END)
+
+    app = construtor.compile()
+
+    return app
 
 
 def construir_sequencial():
-    # ETAPA 1 -- em construir_sequencial: os mesmos 4 nós em fila
-    #   investigador -> juridico -> risco -> consolidar -> END
-    raise NotImplementedError("ETAPA 1: construir_sequencial")
+    construtor = StateGraph(Estado)
+
+    for nome, func in [
+        ("investigador", investigador),
+        ("juridico", juridico),
+        ("risco", risco),
+        ("consolidar", consolidar),
+    ]:
+        construtor.add_node(nome, func)
+
+    construtor.add_edge(START, "investigador")
+    construtor.add_edge("investigador", "juridico")
+    construtor.add_edge("juridico", "risco")
+    construtor.add_edge("risco", "consolidar")
+    construtor.add_edge("consolidar", END)
+
+    app = construtor.compile()
+
+    return app
 
 
 def medir(titulo: str, app) -> float:
-    # ETAPA 2 -- em medir: imprima o título, marque o tempo com time.perf_counter()
-    #   app.invoke com o estado inicial e devolva a duração
-    raise NotImplementedError("ETAPA 2: medir")
+    print(f"== {titulo} ==")
+    inicio = time.perf_counter()
+    app.invoke({"solicitacao": DENUNCIA_045, "investigacao": "", "analise_juridica": "", "analise_risco": "", "recomendacao": ""})
+    duracao = time.perf_counter() - inicio
+    print(f"-> {duracao:.1f} s\n")
+    return duracao
 
 
 if __name__ == "__main__":
     print(f"Modelo em uso: {MODELO}\n")
     seq = medir("SEQUENCIAL: juridico -> risco", construir_sequencial())
     par = medir("PARALELO: juridico e risco juntos", construir_paralelo())
-    print(f"Sequencial {seq:.1f} s x paralelo {par:.1f} s.")
+    print(f" Sequencial {seq:.1f} s x paralelo {par:.1f} s.")
     print("Paralelismo só cabe onde os especialistas são INDEPENDENTES (aqui: ambos dependem só dos fatos).")
     print("Se o risco precisasse do parecer jurídico, a fila voltaria a ser obrigatória.")

@@ -83,33 +83,52 @@ def analista(estado: Estado) -> dict:
 
 
 def construir(checkpointer):
-    # ETAPA 1 -- em construir(checkpointer): monte o StateGraph com os três nós (investigador, juridico, analista) e as arestas START -> ... -> END
-    #   compile(checkpointer=checkpointer, interrupt_before=["analista"])
-    raise NotImplementedError("ETAPA 1: construir")
+    construtor = StateGraph(Estado)
+    construtor.add_node("investigador", investigador)
+    construtor.add_node("juridico", juridico)
+    construtor.add_node("analista", analista)
+
+    construtor.add_edge(START, "investigador")
+    construtor.add_edge("investigador", "juridico")
+    construtor.add_edge("juridico", "analista")
+
+    return construtor.compile(checkpointer=checkpointer, interrupt_before=["analista"])
 
 
 def mostrar_estado(app, titulo: str) -> None:
-    # ETAPA 3 -- em mostrar_estado: foto = app.get_state(CONFIG)
-    #   imprima o título, foto.next e cada campo de foto.values (use "-" quando vazio)
-    raise NotImplementedError("ETAPA 3: mostrar_estado")
+    print(f"\n{titulo}")
+    print(f"Thread: {THREAD_ID}")
+    print(f" Próximo nó: {app.next_node}")
+    foto = app.get_state(CONFIG)
+    for campo, valor in foto.items():
+        print(f" {campo}: {valor}")
+
 
 
 def iniciar(app) -> None:
-    # ETAPA 2 -- em iniciar: imprima o cabeçalho com o THREAD_ID
-    #   app.invoke(estado inicial com os campos vazios, CONFIG) e depois mostrar_estado
-    raise NotImplementedError("ETAPA 2: iniciar")
+    app.invoke({
+        "solicitacao": DENUNCIA_045,
+        "investigacao": "",
+        "analise_juridica": "",
+        "analise_risco": "",
+        "recomendacao": "",
+    }, CONFIG)
+
+    mostrar_estado(app, "Execução INTERROPIDA no BREAKPOINT (antes de analista)")
 
 
 def retomar(app) -> None:
-    # ETAPA 4 -- em retomar: leia o estado; se não houver foto.next, encerre com "Nada a retomar..."
-    #   caso contrário, app.invoke(None, CONFIG) e mostrar_estado
-    raise NotImplementedError("ETAPA 4: retomar")
+    foto = app.get_state(CONFIG)
+    if not foto.next:
+        raise SystemExit("Não há checkpoint salvo: rode sem --retomar primeiro.")
+    app.invoke(None, CONFIG)
+    mostrar_estado(app, "Execução RETOMADA e FINALIZADA")
 
 
 def historico(app) -> None:
-    # ETAPA 5 -- em historico: percorra app.get_state_history(CONFIG)
-    #   para cada foto, imprima o passo, o próximo nó e os campos preenchidos
-    raise NotImplementedError("ETAPA 5: historico")
+    print(f"\nHistórico de checkpoints da thread {THREAD_ID}:")
+    for foto in app.get_state_history(CONFIG):
+        print(f"  {foto.metadata.get('step'):>2} -> {foto.next}")
 
 
 if __name__ == "__main__":

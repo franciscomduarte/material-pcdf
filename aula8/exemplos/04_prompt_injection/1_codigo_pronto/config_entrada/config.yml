@@ -1,0 +1,10 @@
+# Configuração do NeMo Guardrails. O modelo é trocado pelo .env (base/guardrails.py), então aqui é só um valor padrão.
+models:
+  - type: main
+    engine: openai
+    model: gpt-4o-mini
+
+rails:
+  input:
+    flows:
+      - self check input   # antes de o agente ver a mensagem, um modelo avalia se ela é permitida

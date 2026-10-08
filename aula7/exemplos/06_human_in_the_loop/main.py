@@ -117,11 +117,11 @@ def resumo_para_humano(estado: Estado) -> str:
 
 
 def validacao_humana(estado: Estado) -> dict:
-    # ETAPA 3 -- em validacao_humana: imprima "[HUMANO] aguardando validação..."
-    #   resposta = interrupt({"pergunta": ..., "resumo": resumo_para_humano(estado)})
-    #   devolva {"aprovado": ...} (True se a resposta for sim ou s)
-    raise NotImplementedError("ETAPA 3: validacao_humana")
-
+    print("[HUMANO]       aguardando validação...")
+    # interrupt(): o grafo PARA aqui. O valor passado (o resumo) sai no retorno do invoke().
+    # Quando alguém retomar com Command(resume=X), interrupt() devolve X e o nó segue.
+    resposta = interrupt({"pergunta": "Aprovar análise? [sim/não]", "resumo": resumo_para_humano(estado)})
+    return {"aprovado": str(resposta).strip().lower() in ("sim", "s")}
 
 def finalizar(estado: Estado) -> dict:
     print("[FINALIZAR]    análise aprovada")
@@ -134,30 +134,46 @@ def rejeitada(estado: Estado) -> dict:
 
 
 def rotear_apos_humano(estado: Estado) -> str:
-    # ETAPA 5 -- em rotear_apos_humano: devolva "sim" se estado["aprovado"], senão "nao"
-    raise NotImplementedError("ETAPA 5: rotear_apos_humano")
-
+    return "sim" if estado["aprovado"] else "nao"
 
 def construir(checkpointer):
-    # ETAPA 1 -- em construir(checkpointer): StateGraph(Estado) com os 7 nós
-    #   arestas: START -> orquestrador -> investigador -> juridico -> analista -> validacao_humana
-    #   add_conditional_edges("validacao_humana", rotear_apos_humano, {"sim": "finalizar", "nao": "rejeitada"})
-    #   finalizar e rejeitada -> END; compile(checkpointer=checkpointer)
-    raise NotImplementedError("ETAPA 1: construir")
+    construtor = StateGraph(Estado)
+    for nome, funcao in [
+        ("orquestrador", orquestrador), ("investigador", investigador), ("juridico", juridico),
+        ("analista", analista), ("validacao_humana", validacao_humana),
+        ("finalizar", finalizar), ("rejeitada", rejeitada),
+    ]:
+        construtor.add_node(nome, funcao)
+
+    construtor.add_edge(START, "orquestrador")
+    construtor.add_edge("orquestrador", "investigador")
+    construtor.add_edge("investigador", "juridico") 
+    construtor.add_edge("juridico", "analista")
+    construtor.add_edge("analista", "validacao_humana")
+    construtor.add_conditional_edges("validacao_humana", rotear_apos_humano, {"sim": "finalizar", "nao": "rejeitada"})
+    construtor.add_edge("finalizar", END)
+    construtor.add_edge("rejeitada", END)
+    return construtor.compile(checkpointer=checkpointer)
 
 
 def iniciar(app) -> None:
-    # ETAPA 2 -- em iniciar: invoke com o estado inicial e CONFIG
-    #   pausa = resultado["__interrupt__"][0].value
-    #   imprima o próximo nó (app.get_state(CONFIG).next), o resumo e a pergunta
-    raise NotImplementedError("ETAPA 2: iniciar")
+    print("== 1) EXECUÇÃO ATÉ A PAUSA ==")
+    resultado = app.invoke({"solicitacao": SOLICITACAO, "investigacao": "", "analise_juridica": "",
+                            "analise_risco": "", "recomendacao": "", "aprovado": False}, CONFIG)
+    pausa = resultado["__interrupt__"][0].value  # o que o nó passou ao interrupt()
+    print("\ninvoke() RETORNOU, mas a execução NÃO terminou. Está pausada; o estado está no SQLite.")
+    print(f"próximo nó: {app.get_state(CONFIG).next}\n")
+    print(pausa["resumo"])
+    print(pausa["pergunta"])
 
 
 def retomar(app, decisao: str) -> None:
-    # ETAPA 4 -- em retomar: se não houver get_state(CONFIG).next, encerre com a mensagem
-    #   app.invoke(Command(resume=decisao), CONFIG)
-    #   imprima aprovado = ... lido de app.get_state(CONFIG).values
-    raise NotImplementedError("ETAPA 4: retomar")
+    if not app.get_state(CONFIG).next:
+        raise SystemExit("Não há execução pausada: rode primeiro `python main.py` (sem argumentos).")
+    print(f"== 2) RETOMADA com a decisão humana: {decisao!r} ==")
+    app.invoke(Command(resume=decisao), CONFIG)
+    estado = app.get_state(CONFIG).values
+    print(f"\naprovado = {estado['aprovado']}")
 
 
 def parte_a_simples() -> None:

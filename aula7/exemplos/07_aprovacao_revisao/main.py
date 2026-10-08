@@ -1,14 +1,4 @@
 """
-ESQUELETO PARA IMPLEMENTAR AO VIVO (aula 7).
-Implemente as etapas na ordem. Cada uma está marcada com um comentário e um
-raise NotImplementedError: troque esse raise pelo código da etapa.
-  ETAPA 1 -- O grafo com o ciclo de revisão
-  ETAPA 2 -- Conduzir as pausas até terminar
-  ETAPA 3 -- O analista lê o feedback e conta a tentativa
-  ETAPA 4 -- validacao_humana devolve decisão e feedback
-  ETAPA 5 -- O roteador e a condição de parada
-O texto abaixo descreve o exemplo pronto.
-
 Exemplo 07 -- APROVAÇÃO E REVISÃO: o exemplo que consolida a aula.
 
 No exemplo 06 o humano só aprovava ou rejeitava, e rejeitar encerrava tudo.
@@ -48,12 +38,12 @@ ERRO TÉCNICO x REJEIÇÃO HUMANA (não são a mesma coisa):
                    tem feedback e conta como tentativa.
 
 Rodar, a partir de aula7/ (LLM REAL: configure o .env; veja o README):
-    python exemplos\\07_aprovacao_revisao\\main.py                       # interativo: VOCÊ é o humano
-    python exemplos\\07_aprovacao_revisao\\main.py --auto sim            # aprova de primeira
-    python exemplos\\07_aprovacao_revisao\\main.py --auto nao,sim        # rejeita 1x, depois aprova
-    python exemplos\\07_aprovacao_revisao\\main.py --auto nao,nao,nao    # rejeita até o limite
-    python exemplos\\07_aprovacao_revisao\\main.py --falha-tecnica       # simula erro técnico e para
-    python exemplos\\07_aprovacao_revisao\\main.py --retomar --auto sim  # retoma depois do erro técnico
+    python exemplos\\07_aprovacao_revisao\\solucao\\main.py                       # interativo: VOCÊ é o humano
+    python exemplos\\07_aprovacao_revisao\\solucao\\main.py --auto sim            # aprova de primeira
+    python exemplos\\07_aprovacao_revisao\\solucao\\main.py --auto nao,sim        # rejeita 1x, depois aprova
+    python exemplos\\07_aprovacao_revisao\\solucao\\main.py --auto nao,nao,nao    # rejeita até o limite
+    python exemplos\\07_aprovacao_revisao\\solucao\\main.py --falha-tecnica       # simula erro técnico e para
+    python exemplos\\07_aprovacao_revisao\\solucao\\main.py --retomar --auto sim  # retoma depois do erro técnico
 """
 import sys
 from pathlib import Path
@@ -114,10 +104,14 @@ def juridico(estado: Estado) -> dict:
 
 
 def analista(estado: Estado) -> dict:
-    # ETAPA 3 -- em analista: tentativa = estado["tentativas"] + 1 e imprima o log
-    #   gere o risco (agentes.risco) e a recomendação (agentes.redator; prompts.entrada_recomendar recebe estado["feedback_humano"])
-    #   devolva analise_risco, recomendacao e tentativas
-    raise NotImplementedError("ETAPA 3: analista")
+    tentativa = estado["tentativas"] + 1
+    print(f"[ANALISTA]     tentativa {tentativa}")
+    fatos, enquadramento = estado["investigacao"], estado["analise_juridica"]
+    risco = Runner.run_sync(agentes.risco, prompts.entrada_risco(fatos, enquadramento)).final_output
+    # com feedback do revisor, o redator escreve a versão COMPLETA (ações numeradas, responsável e prazo)
+    entrada = prompts.entrada_recomendar(fatos, enquadramento, risco, estado["feedback_humano"])
+    recomendacao = Runner.run_sync(agentes.redator, entrada).final_output
+    return {"analise_risco": risco, "recomendacao": recomendacao, "tentativas": tentativa}
 
 
 def resumo_para_humano(estado: Estado) -> str:
@@ -132,9 +126,10 @@ def resumo_para_humano(estado: Estado) -> str:
 
 
 def validacao_humana(estado: Estado) -> dict:
-    # ETAPA 4 -- em validacao_humana: imprima o log e chame interrupt({"resumo": ..., "pergunta": ...})
-    #   devolva aprovado e feedback_humano (resposta["aprovado"], resposta.get("feedback", ""))
-    raise NotImplementedError("ETAPA 4: validacao_humana")
+    print("[HUMANO]       aguardando validação...")
+    # Este nó roda de novo na retomada; por isso só decide, sem efeito colateral antes do interrupt().
+    resposta = interrupt({"resumo": resumo_para_humano(estado), "pergunta": "Aprovar análise? [sim/não]"})
+    return {"aprovado": resposta["aprovado"], "feedback_humano": resposta.get("feedback", "")}
 
 
 def revisar(estado: Estado) -> dict:
@@ -153,16 +148,34 @@ def encerrar_sem_aprovacao(estado: Estado) -> dict:
 
 
 def rotear_apos_humano(estado: Estado) -> str:
-    # ETAPA 5 -- em rotear_apos_humano:
-    #   aprovado -> "aprovada"; tentativas >= MAX_TENTATIVAS -> "desistir"; senão -> "revisar"
-    raise NotImplementedError("ETAPA 5: rotear_apos_humano")
+    if estado["aprovado"]:
+        return "aprovada"
+    if estado["tentativas"] >= MAX_TENTATIVAS:  # CONDIÇÃO DE PARADA, lida do estado
+        return "desistir"
+    return "revisar"
 
 
 def construir(checkpointer):
-    # ETAPA 1 -- em construir: 8 nós; arestas START -> orquestrador -> investigador -> juridico -> analista -> validacao_humana
-    #   add_conditional_edges com {"aprovada": "finalizar", "revisar": "revisar", "desistir": "encerrar_sem_aprovacao"}
-    #   add_edge("revisar", "analista") (o ciclo); finalizar e encerrar_sem_aprovacao -> END; compile(checkpointer=checkpointer)
-    raise NotImplementedError("ETAPA 1: construir")
+    construtor = StateGraph(Estado)
+    for nome, funcao in [
+        ("orquestrador", orquestrador), ("investigador", investigador), ("juridico", juridico),
+        ("analista", analista), ("validacao_humana", validacao_humana), ("revisar", revisar),
+        ("finalizar", finalizar), ("encerrar_sem_aprovacao", encerrar_sem_aprovacao),
+    ]:
+        construtor.add_node(nome, funcao)
+    construtor.add_edge(START, "orquestrador")
+    construtor.add_edge("orquestrador", "investigador")
+    construtor.add_edge("investigador", "juridico")
+    construtor.add_edge("juridico", "analista")
+    construtor.add_edge("analista", "validacao_humana")
+    construtor.add_conditional_edges(
+        "validacao_humana", rotear_apos_humano,
+        {"aprovada": "finalizar", "revisar": "revisar", "desistir": "encerrar_sem_aprovacao"},
+    )
+    construtor.add_edge("revisar", "analista")  # o ciclo
+    construtor.add_edge("finalizar", END)
+    construtor.add_edge("encerrar_sem_aprovacao", END)
+    return construtor.compile(checkpointer=checkpointer)
 
 
 def humano_interativo(pausa: dict) -> dict:
@@ -176,10 +189,18 @@ def conduzir(app, entrada, decisoes: list[str] | None = None) -> dict:
     """Roda o grafo; a cada pausa pede a decisão do humano e retoma, até terminar.
     `entrada` é o estado inicial (execução nova) ou None (retomar um checkpoint).
     `decisoes` (opcional) substitui o input(): ex. ["nao", "sim"]."""
-    # ETAPA 2 -- em conduzir: resultado = app.invoke(entrada, CONFIG)
-    #   enquanto "__interrupt__" estiver no resultado: leia a pausa; obtenha a resposta (humano_interativo ou a próxima de decisoes)
-    #   retome com app.invoke(Command(resume=resposta), CONFIG); devolva o resultado
-    raise NotImplementedError("ETAPA 2: conduzir")
+    resultado = app.invoke(entrada, CONFIG)
+    while "__interrupt__" in resultado:
+        pausa = resultado["__interrupt__"][0].value
+        if decisoes is None:
+            resposta = humano_interativo(pausa)
+        else:
+            aprovado = (decisoes.pop(0) if decisoes else "nao") == "sim"
+            print("\n" + pausa["resumo"])
+            print(f"(humano simulado) aprovado = {aprovado}")
+            resposta = {"aprovado": aprovado, "feedback": "" if aprovado else FEEDBACK_PADRAO}
+        resultado = app.invoke(Command(resume=resposta), CONFIG)  # retomada a partir do checkpoint
+    return resultado
 
 
 if __name__ == "__main__":
@@ -206,7 +227,7 @@ if __name__ == "__main__":
             print(f"\nERRO TÉCNICO ({erro}). Isto NÃO é uma rejeição humana.")
             print(f"O checkpoint guardou o que já foi feito; próximo nó pendente: {foto.next}")
             print("Retome quando o serviço voltar:")
-            print("    python exemplos\\07_aprovacao_revisao\\main.py --retomar --auto sim")
+            print("    python exemplos\\07_aprovacao_revisao\\solucao\\main.py --retomar --auto sim")
             raise SystemExit(1)
 
         final = app.get_state(CONFIG).values
