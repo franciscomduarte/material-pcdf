@@ -90,20 +90,33 @@ START → receber → proteger_entrada ─┬─ bloqueado ───────
 > **Estratégia:** não trave numa etapa. Se passar de 1,5× o tempo sugerido, deixe um `# TODO` explicando o que falta e siga.
 > Uma etapa incompleta, mas que roda, vale mais do que um sistema perfeito que para na Etapa 4.
 
-## Estrutura sugerida do seu projeto
+## O esqueleto: um arquivo por etapa
 
-```
-exercicio_final/
-├── dados/                  (já vem pronto)
-├── provedor.py             copie de aula7/provedor.py
-├── etapa1_agente.py ... etapa6_linear.py   um arquivo por etapa até a 6 (cada um importa o anterior)
-├── ferramentas.py          tools locais: feriados, dias úteis, câmbio, protocolo
-├── agentes.py              extratores, guardrail, Normas, Escala, Financeiro, Coordenador, Redator, Validador
-├── mcp_rh.py               seu MCP Server
-├── grafo.py                o grafo final (Etapas 7 a 10)
-├── saidas/                 registros.json, auditoria.jsonl, metricas.jsonl, checkpoints.db
-└── ENTREGA.md              o relatório da Etapa 11
-```
+O código já vem com a **estrutura pronta** e lacunas marcadas, no mesmo estilo dos exemplos da Aula 7: cada lacuna é um
+comentário `# ETAPA n.m` com um `raise NotImplementedError("ETAPA n.m: ...")`. Troque o `raise` pelo código da etapa e rode o
+arquivo. Rodar antes de terminar mostra `NotImplementedError: ETAPA n.m`: é esperado, e diz onde você está.
+
+**Cada arquivo começa com um bloco `REFERÊNCIAS NAS AULAS`** listando os exemplos que mostram o mesmo mecanismo, e cada lacuna
+repete a referência mais próxima. Trechos marcados `(PRONTO)` não são o foco do exercício: use-os sem medo.
+
+| Arquivo | Etapas | O que você implementa | Rodar |
+|---|---|---|---|
+| `provedor.py`, `dados_rh.py` | (prontos) | nada: provedor de LLM (cópia da Aula 7) e leitura de `dados/` | |
+| `etapa1_agente.py` | 1 | tool `consultar_servidor` e o `AtendenteRH` | `python etapa1_agente.py` |
+| `extracao.py` | 2, **🆕 A** | modelo `Pedido`, extrator, 3 extratores em paralelo e votação | `python extracao.py [--votacao]` |
+| `guardrails.py` | 3 | regex CPF/CID, classificador de escopo, `@input_guardrail` | `python guardrails.py` |
+| `ferramentas.py` | 4 | data real, retry, feriados, câmbio, protocolo, limites | `python ferramentas.py` |
+| `mcp_rh.py` | 5, 9 | as 6 tools do server; depois token, N8 e auditoria | `npx @modelcontextprotocol/inspector python mcp_rh.py` |
+| `cliente_mcp.py` | 5 | o agente com `MCPServerStdio` e o `chamar_mcp` sem agente | `python cliente_mcp.py [--agente]` |
+| `regras.py` | 6 | as regras **objetivas** da norma em Python (saldo, N3, N4, N5, N6) e a N8 | `python regras.py` |
+| `agentes.py` | 6 | Normas, Escala, Financeiro, Redator e o Coordenador (`as_tool`) | |
+| `governanca.py` | **🆕 B**, 10 | o hook que barra (permissões e orçamento) e, depois, registra | |
+| `etapa6_linear.py` | 6, **🆕 B** | o fluxo linear completo ⇒ **Marco mínimo** | `python etapa6_linear.py [--governanca]` |
+| `grafo.py` | 7, 8, **🆕 C**, 9 | o grafo, a chefia, a triagem humana, o guardrail de saída | `python grafo.py C2_ferias_com_venda` |
+| `observabilidade.py` | 10 | tempo e tokens por nó, resumo de uma execução | `python observabilidade.py <thread_id>` |
+| `ENTREGA.md` | 0, 11 | o relatório (modelo pronto para preencher) | |
+
+Os arquivos gerados (`registros.json`, `auditoria.jsonl`, `metricas.jsonl`, `checkpoints.db`) vão para `saidas/`.
 
 ---
 
@@ -113,11 +126,12 @@ exercicio_final/
 
 1. Crie e ative um ambiente virtual dentro de `exercicio_final/` e instale o `requirements.txt`.
 2. Copie `.env.example` para `.env` e preencha o provedor (OpenAI ou Ollama).
-3. Copie `aula7/provedor.py` para esta pasta (ele já trata OpenAI e Ollama e para com uma mensagem clara se faltar a chave).
+3. O `provedor.py` já está nesta pasta (é o mesmo da Aula 7: trata OpenAI e Ollama e para com uma mensagem clara se faltar a chave).
 4. Leia `dados/normas.md`. Para cada regra (N1 a N10), anote: **quem verifica**? Uma função Python (regra objetiva), um agente
    (interpretação) ou um humano (decisão)? Essa tabela vai guiar as próximas etapas.
 
-**Pronto quando:** `python -c "import agents, langgraph, mcp; print('ok')"` imprime `ok`, e sua tabela N1–N10 está no `ENTREGA.md`.
+**Pronto quando:** `python -c "import agents, langgraph, mcp; print('ok')"` imprime `ok`, `python dados_rh.py` lista os dados, e sua
+tabela N1–N10 está no `ENTREGA.md`.
 
 **Onde olhar:** `aula1/provedor.py` (a ideia do `configurar()`), `aula7/README.md` (instalação), `aula7/provedor.py`.
 
@@ -242,7 +256,10 @@ em `saidas/registros.json` (ou SQLite).
 | `consultar_normas(tema)` | leitura | as regras de `normas.md` daquele tema (`ferias`, `abono`, `diaria`...) |
 | `tabela_diarias(tipo_destino)` | leitura | moeda e valor da diária |
 | `consultar_remuneracao(matricula)` | leitura **restrita** | salário-base (só o Financeiro precisa, ver item 🆕 B e Etapa 9) |
-| `registrar_decisao(protocolo, matricula, tipo, inicio, fim, decisao, aprovador, despacho)` | **escrita** | grava; se o protocolo já existir, **não duplica** e avisa |
+| `registrar_decisao(protocolo, matricula, tipo, inicio, fim, decisao, aprovador, despacho, token, thread_id)` | **escrita** | grava; se o protocolo já existir, **não duplica** e avisa |
+
+Convenção do server: **toda tool devolve um único dict** (uma tool MCP que devolve lista manda cada item separado, e quem chama
+não distingue "lista com 1 item" de "1 dict").
 
 **Tarefa**
 
@@ -273,8 +290,10 @@ em `saidas/registros.json` (ou SQLite).
      e a cotação da Etapa 4;
    - `Redator`: escreve o despacho (deferimento ou indeferimento) **usando só os fatos recebidos**, sem CPF nem dado de saúde (N10).
 2. Crie um `Coordenador` que usa `Normas`, `Escala` e `Financeiro` **como tools** (`as_tool`) e monta um parecer único.
-3. Monte `etapa6_linear.py`, um fluxo **em Python puro** (sem LangGraph), que encadeia tudo:
-   guardrails → extração → MCP (servidor) → feriados → coordenador → redator → protocolo → MCP (registrar).
+3. Em `regras.py`, implemente as regras **objetivas** (saldo, venda, início proibido, antecedência, escala, abono) e a N8: um LLM
+   pode errar uma conta, uma função não. Os agentes **explicam**; quem decide "violou ou não" é o Python.
+4. Monte `etapa6_linear.py`, um fluxo **em Python puro** (sem LangGraph), que encadeia tudo:
+   guardrails → extração → MCP (servidor) → feriados → regras → coordenador → redator → protocolo → MCP (registrar).
 
 **Pronto quando:** `C1`, `C2` e `C11` chegam a um registro gravado com protocolo, `C6` vira um **indeferimento** com sugestão de
 datas, e você consegue dizer **qual agente escreveu cada parte**.
@@ -298,8 +317,11 @@ uma responsabilidade), `aula6/exemplos/01_fluxo_linear/main.py` (o fluxo linear 
 3. **Orçamento de turnos do modelo:** no máximo N chamadas ao LLM (complementa o `max_turns` da Etapa 4, mas com a **sua** mensagem
    e o **seu** registro).
 
-Para barrar, lance uma exceção sua (ex.: `class LimiteExcedido(Exception)`) dentro do hook e trate-a em volta do `Runner`,
-devolvendo uma mensagem clara e registrando o motivo. Como `on_tool_start` roda **antes** da tool, ela **não executa**.
+Para barrar, lance uma exceção sua (`LimiteExcedido`, já declarada em `governanca.py`) dentro do hook e trate-a em volta do
+`Runner`, devolvendo uma mensagem clara e registrando o motivo. Como `on_tool_start` roda **antes** da tool, ela **não executa**.
+Dois detalhes do SDK, já explicados no esqueleto: a exceção herda de `AgentsException` (senão vira um `UserError` genérico), e as
+`as_tool` do Coordenador usam `failure_error_function=None` (senão o bloqueio dentro de um especialista vira só um texto de erro
+para o Coordenador, que segue em frente).
 
 **Pronto quando:** dando de propósito a tool `consultar_remuneracao` ao `Coordenador` e pedindo "qual o salário da 1002?", a execução
 é barrada **antes** da tool rodar (prove com um `print` dentro da tool); com `MAX_TOOLS = 1`, o `C2` é parado antes do segundo
@@ -323,7 +345,7 @@ cada nó só chama o que já existe e devolve **o que mudou** no estado.
    `tentativas`, `erro_validacao`, `decisao`, `protocolo`, `caminho`.
    Use um **reducer** (`Annotated[list[str], operator.add]`) para `caminho` e para `violacoes`, para que cada nó só acrescente o seu.
 2. **Arestas condicionais:** `proteger_entrada` (bloqueado/ok), `extrair` (incompleto/ok), `identificar_servidor`
-   (não encontrado/ok) e `consolidar` (violação objetiva/deferível).
+   (não encontrado/ok) e `validar` (refazer/chefia/registrar). O `consolidar` decide `deferido` ou `indeferido` com `regras.py`.
 3. **Paralelismo:** `normas`, `escala` e `financeiro` rodam no **mesmo passo** (fan-out) e `consolidar` espera os três
    (fan-in por lista). Cada um escreve **só no seu campo**. Nesta etapa os especialistas viram **nós** (o grafo controla a ordem),
    e não mais tools do Coordenador.
@@ -351,7 +373,8 @@ no dia seguinte, em outro processo.
 
 **Tarefa**
 
-1. Compile o grafo com um **checkpointer SQLite** (`saidas/checkpoints.db`) e use o **protocolo** como `thread_id`.
+1. Compile o grafo com um **checkpointer SQLite** (`saidas/checkpoints.db`). O `thread_id` de cada execução é o nome do caso
+   (ex.: `C2_ferias_com_venda`); rodar o mesmo caso de novo recomeça do zero.
 2. Crie o nó `aprovacao_chefia`, que só roda quando a N8 exige. Ele chama `interrupt()` com um **resumo** para a chefia (servidor,
    período, pareceres, valor, despacho proposto) e recebe `{"aprovado": bool, "aprovador": str, "motivo": str}`.
 3. **Aprovado** → `registrar`. **Rejeitado** → volta a `redigir_despacho` com o motivo como feedback (máximo de **2 rejeições**;
@@ -406,10 +429,12 @@ nenhuma vez e `C2` pausa só na chefia.
 3. **Auditoria:** toda tentativa de escrita, **permitida ou negada**, vira uma linha em `saidas/auditoria.jsonl` com: quando,
    `thread_id`, quem pediu, tool, protocolo, decisão (`ALLOW`/`DENY`) e motivo. As decisões da `triagem_humana` também entram.
 4. **Guardrail de saída:** antes de gravar, confira que o despacho não contém CPF nem CID (N10). Se falhar, não grava.
-5. Rode `C7` com o guardrail de entrada **desligado** e mostre que, mesmo assim, nada é aprovado e a auditoria registra `DENY`.
-   Tente também retomar o `C2` com `--retomar <thread_id> sim 1002` (o próprio servidor aprovando): `DENY`.
+5. Rode `python grafo.py --sem-guardrail C7_autoaprovacao` e mostre que, mesmo sem o guardrail, o "eu aprovo" não aprova nada
+   (as regras indeferem). Depois retome o `C2` com `--retomar C2_ferias_com_venda sim 1002` (o próprio servidor aprovando) e com
+   `sim 1011` (uma chefia que não é a dele): o **server** nega as duas.
 
-**Pronto quando:** `saidas/auditoria.jsonl` tem linhas `ALLOW` (C1, C2 aprovado pela 1010) e `DENY` (C7 e a autoaprovação do C2).
+**Pronto quando:** `saidas/auditoria.jsonl` tem linhas `ALLOW` (C1, C2 aprovado pela 1010) e `DENY` (autoaprovação do C2, chefia
+errada e uma chamada sem token, como a de `python cliente_mcp.py`).
 
 **Onde olhar:** `aula5/exemplos/10_seguranca/server_seguro.py` (**o mais parecido**: token de supervisor, enum, auditoria no server),
 `aula5/exemplos/10_seguranca/agente_seguranca.py` (os 4 cenários de teste), `aula8/exemplos/06_excessive_agency/1_codigo_pronto/main.py`
@@ -424,8 +449,10 @@ nenhuma vez e `C2` pausa só na chefia.
 
 **Tarefa**
 
-1. Reaproveite o hook do item 🆕 B para **também** registrar, para cada agente: início, cada tool chamada (com argumentos) e o resultado.
-2. Para cada **nó** do grafo, meça o tempo e, quando houver agente, os **tokens** (`resultado.context_wrapper.usage`). Grave uma
+1. Reaproveite o hook do item 🆕 B (`governanca.py`) para **também** registrar, para cada agente: cada tool chamada (com
+   argumentos), o resultado e os tokens.
+2. Em `observabilidade.py`, embrulhe cada **nó** do grafo (`medido()`, já aplicado em `construir()`), meça o tempo e, quando houver
+   agente, os **tokens** (`resultado.context_wrapper.usage`). Grave uma
    linha por nó em `saidas/metricas.jsonl`, com o mesmo `thread_id` da auditoria. Registre também a **fonte** dos feriados
    (API ou arquivo local) e se o câmbio veio da API.
 3. No fim de cada execução, imprima um resumo: nós percorridos, tempo total, nó mais lento, tokens totais.
