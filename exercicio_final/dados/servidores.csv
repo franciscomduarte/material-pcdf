@@ -1,0 +1,10 @@
+matricula,nome,cargo,equipe,saldo_ferias_dias,abonos_restantes,salario_base,chefia
+1001,Ana Ribeiro,Agente,Plantão A,30,5,9000.00,1010
+1002,Bruno Castro,Escrivão,Plantão A,30,3,9500.00,1010
+1003,Carla Nunes,Agente,Inteligência,20,5,9000.00,1011
+1004,Diego Matos,Escrivão,Cartório,30,5,9500.00,1012
+1005,Elisa Prado,Agente,Cartório,10,0,9000.00,1012
+1006,Fábio Lopes,Agente,Cartório,30,2,9000.00,1012
+1010,Helena Duarte,Delegada,Plantão A,30,5,20000.00,
+1011,Igor Sales,Delegado,Inteligência,30,5,20000.00,
+1012,Júlia Teles,Delegada,Cartório,30,5,20000.00,

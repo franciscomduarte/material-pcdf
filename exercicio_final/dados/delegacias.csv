@@ -1,9 +1,0 @@
-codigo,nome,bairro,latitude,longitude,viaturas_disponiveis,especialidade
-D01,1ª CISP Asa Sul,asa sul,-15.8300,-47.9200,3,geral
-D02,2ª CISP Asa Norte,asa norte,-15.7650,-47.8800,2,geral
-D03,3ª CISP Taguatinga,taguatinga,-15.8350,-48.0550,2,geral
-D04,4ª CISP Ceilândia,ceilândia,-15.8200,-48.1050,1,geral
-D05,5ª CISP Sobradinho,sobradinho,-15.6520,-47.7880,0,geral
-D06,6ª CISP Gama,gama,-16.0180,-48.0620,2,geral
-E01,Delegacia Especializada de Atendimento à Mulher,asa sul,-15.8050,-47.9000,2,violencia_mulher
-E02,Delegacia Especializada de Crimes Cibernéticos,asa norte,-15.7800,-47.8900,1,cibernetico
