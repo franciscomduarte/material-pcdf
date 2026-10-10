@@ -1,0 +1,13 @@
+# Exercício final -- tudo o que as Aulas 1 a 8 usaram, SEM Docker e SEM banco externo.
+# Instale com: python -m pip install -r requirements.txt
+openai-agents>=0.22.0,<0.23.0   # Agent, Runner, function_tool, guardrails, MCPServerStdio (Aulas 1-5)
+openai>=1.0
+mcp>=2.0                        # seu MCP Server (Aula 5) e o cliente MCP dentro dos nós (Aula 6)
+langgraph>=1.2,<2.0             # o grafo (Aulas 6 e 7)
+langgraph-checkpoint-sqlite>=3.0  # persistência e human-in-the-loop (Aula 7)
+python-dotenv>=1.0
+requests>=2.31                  # API externa com retry (Aula 3)
+# Opcionais (bônus):
+# paho-mqtt>=1.6,<2.0           # publicação de eventos (Aula 4)
+# fastapi / uvicorn             # expor o sistema como API (Aula 2)
+# opentelemetry-sdk             # traces (pasta aula8, exemplo 03)
