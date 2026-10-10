@@ -124,7 +124,7 @@ Os arquivos gerados (`registros.json`, `auditoria.jsonl`, `metricas.jsonl`, `che
 
 **Tarefa**
 
-1. Crie e ative um ambiente virtual dentro de `exercicio_final/` e instale o `requirements.txt`.
+1. Crie e ative um ambiente virtual dentro de `aula10/` e instale o `requirements.txt`.
 2. Copie `.env.example` para `.env` e preencha o provedor (OpenAI ou Ollama).
 3. O `provedor.py` já está nesta pasta (é o mesmo da Aula 7: trata OpenAI e Ollama e para com uma mensagem clara se faltar a chave).
 4. Leia `dados/normas.md`. Para cada regra (N1 a N10), anote: **quem verifica**? Uma função Python (regra objetiva), um agente

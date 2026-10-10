@@ -12,7 +12,7 @@ REFERÊNCIAS NAS AULAS
   exercicios_resolvidos/aula4/ex10_function_tool.py  tool que consulta uma TABELA e devolve JSON  <- o mais parecido
   aula8/exemplos/02_agente_tool/main.py              o agente decide quando chamar a tool (e quando não)
 
-Rodar (a partir de exercicio_final/):
+Rodar (a partir de aula10/):
     python etapa1_agente.py
 
 Pronto quando: a tool é chamada só na primeira pergunta (o print dentro dela prova).

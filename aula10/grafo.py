@@ -36,7 +36,7 @@ REFERÊNCIAS NAS AULAS
   aula8/exemplos/05_guardrail_saida/1_codigo_pronto/main.py   conferir a saída antes de entregar         (9.4)
   aula6/exemplos/04_langgraph_basico/main.py       app.get_graph().draw_mermaid()
 
-Rodar (a partir de exercicio_final/):
+Rodar (a partir de aula10/):
     python grafo.py C2_ferias_com_venda           # um caso (o nome do caso é o thread_id)
     python grafo.py --todos                       # os 12 casos
     python grafo.py --pendentes                   # ETAPA 8.4: quem está pausado e onde
